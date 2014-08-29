@@ -8,17 +8,32 @@ import BTree
 -- TODO try to do a more complex grammar than make the difference between
 --      expression of set, boolean and number
 
-{-
+-- TODO this grammar accept many forbiden things and ignore many obligations.
+-- I should list all the additionnal syntax check that are needed
+-- We can also think about relaxing some useless and painful restriction
 
-     Notes on the grammar (as specified in the AtelierB documentation)
+-- TODO forbidden the repetition of sames clauses in a component         
 
+-- TODO do a special constructor in the BTree for "{}" and "[]"
+
+-- TODO there is no real error printing. It's very painful...
+
+-- TODO list the grammar element that could be expressed as a standard library
+
+{-   Note on B0 check and other implementability points
+I intentionally ignored all restrictions specified in the AtelierB
+documentation that aims to ensure a model can be translated into code.
+I think this check should be done by the various possible translators because
+there is no universal notion of implementable language. -}
+        
+{-   Notes on the grammar
 
 # Conflict in the use of the comma
 
-In the places listed below, there is a notion of list of expression separated
-by comma. But the pair expression already define list of expression, so it's a
-problem because that's not possible to choose between the comma of
-the list of expression and the comma of the pair.
+In the places listed below, there is a notion of list of expression
+separated by comma. But the pair expression already define list of
+expression, so it's a problem because that's not possible to choose between
+the comma of the list of expression and the comma of the pair.
 
  - in "Substitution : VariablesList SUBST_ASSIGN ExpressionList"
    which is the simple substitution "become equals to"
@@ -37,28 +52,100 @@ the list of expression and the comma of the pair.
 Possible solutions:
  - Remove the notion of list of expression and just use an expression instead.
    In this way the accepted language remains the same.
-   What is the impact of this on sets or sequences defined by extension?
- - only use "|->" as pair syntax, thus the comma can be use in expression list
+   But it's stil hard to know how to "cut" the tuple into a list... In fact
+   it's really ambigious, especially for lists of tuples.
+ - only use "|->" as pair syntax, thus the comma can be used for expression list
  - add parenthesis around to pair or tuple in order to separate the two
-   contexts (not sure it's enough)
+   contexts (not sure if it's enough)
    
+Current state:
+  I choose the second solution as it has the smaller impact on the design and
+  doesn't change the language too much (but it does).
+  I think is the cleaner approach, mainly because the grammar already have
+  a specific lexem "|->" for tuple.
+  And this is also the choice done by the Rodin people.
+  There is one weird impact with the function application with a tuple that
+  now looks like this "f(1|->2)" instead of the more common "f(1,2)".
+
+
+# Unclear precedence of the function application "f(x)" and image "r[x]"
+
+The function application is defined by the rule 
+
+  Expression : Expression LPAR Expression RPAR
+  
+and the image is similarly
+
+  Expression : Expression LBRACKET Expression RBRACKET
+
+thus the lexem "(" and "[" are used in the same place that all other
+expression operators.
+
+But in the specification of AtelierB no numerical priority are given. So
+it's unclear...
+
+In the Rodin project the grammar of the mathematical language is not
+expressed in the same way (the grammar is more decomposed into terms and
+factor). So it's hard to compare but the "image" group of operators seems quite
+high in the precedence.
+
+I choose to give they the highest (and left) precedence but lower that
+the inverse relation operator. I hope it's what people expect.
+
+TODO do some test with AtelierB to determine what really happen for that.
+TODO chech what happen in the case "f g (x)"
+
+
+# The equivalence precedence
+
+In the AtelierB specification the equivalence "<=>" is given with a priority
+of 160 which is the same as most of expression operators. That is very
+weird because everybody expect the predicate operators with a lower precedence
+that expression operators.
+
+I decided to move the operator precedence at the same level that the
+implication.
+
+
+# Conflict with operation separator, sequencing and relation composition
+
+The operations are separated with ";"
+but there is a substition operator ";" for sequencing
+and there is an expression operator ";" for relation composition.
+
+There is also an substitution operator "||" for parallel specification
+and there is an expression operator "||" for relation parallel product.
+
+So one can write a component like this
+
+  MACHINE m0
+  OPERATIONS
+    op1 =
+      x := r;s(2) ;
+      y := 3
+    ;
+    op2 = skip
+  END
+
+I don't think is really ambigious. We can try 
+
 -}
 
 %name parse
 %tokentype {Token}
 %error {parseError}
 
-%left LBRACKET LPAR -- TODO remove me
 %left PARALLEL SEMICOLON LALR_RELATION_COMPOSITION LALR_PARALLEL_PRODUCT -- 20
-%left IMPLICATION -- 30
+%left IMPLICATION EQUIVALENCE -- 30
 %left CONJUNCTION OR -- 40
 %left COMMA -- 115
 %left RELATION FUNCTION_PARTIAL FUNCTION_TOTAL INJECTION_PARTIAL INJECTION_TOTAL SURJECTION_PARTIAL SURJECTION_TOTAL BIJECTION -- 125
-%left EQUIVALENCE MAPLET UNION INTERSECTION DIRECT_PRODUCT RESTRICTION ANTI_RESTRICTION CO_RESTRICTION ANTI_CO_RESTRICTION OVERRIDE CONCATENATION INSERTION_HEAD INSERTION_QUEUE SEQ_KEEP SEQ_ELIM -- 160
+%left MAPLET UNION INTERSECTION DIRECT_PRODUCT RESTRICTION ANTI_RESTRICTION CO_RESTRICTION ANTI_CO_RESTRICTION OVERRIDE CONCATENATION INSERTION_HEAD INSERTION_QUEUE SEQ_KEEP SEQ_ELIM -- 160
 %left INTERVAL -- 170
 %left PLUS MINUS -- 180
 %left ASTERISK MOD DIV -- 190
 %right POWER -- 200
+%left LBRACKET LPAR
 %left INVERSE -- 230
 
 %token
@@ -232,6 +319,8 @@ LALR_RELATION_COMPOSITION { LALR_relation_composition }
 LALR_PARALLEL_PRODUCT { LALR_parallel_product }
 
 {- I'm not going to implement that right now
+   TODO finish that part
+   
 USES { Uses }
 EXTENDS { Extends }
 INCLUDES { Includes }
@@ -255,7 +344,7 @@ Component
 ComponentClauses
   : {- empty -}
     { [] }
-  | ComponentClauses REFINES Ident -- TODO mandatory for refinement and implementation
+  | ComponentClauses REFINES Ident
     { $1 ++ [BRefines $3] }
   | ComponentClauses IMPORTS Ident
     { $1 ++ [BImports $3] }
@@ -372,7 +461,7 @@ Substitution
     { BSubstitutionCase $2 (($5,$7):$8) (Just $10) }
   | ANY VariablesList WHERE Predicate THEN Substitution END
     { BSubstitutionSpecVar BAny $2 $4 $6 }
-  | LET VariablesList BE Predicate IN Substitution END  -- TODO check Predicate restriction
+  | LET VariablesList BE Predicate IN Substitution END
     { BSubstitutionSpecVar BLet $2 $4 $6 }
   | VariablesList SUBST_IN Expression
     { BSubstitutionBecomeIn $1 $3 }
@@ -517,10 +606,6 @@ Expression
   | Expression MAPLET Expression
     { BBinaryExpression BPair $1 $3 }
     
--- TODO this rule make a conflict (with the COMMA of ExpressionList ?)
---  | Expression COMMA Expression
---    { BBinaryExpression BPair $1 $3 }
-    
   | POW LPAR Expression RPAR
     { BUnaryExpression BPowerSet $3 }
   | POW1 LPAR Expression RPAR
@@ -579,7 +664,7 @@ Expression
     { BUnaryExpression BDomain $3 }
   | RAN LPAR Expression RPAR
     { BUnaryExpression BRange $3 }
-  | Expression LBRACKET Expression RBRACKET  -- TODO conflict (precedence added)
+  | Expression LBRACKET Expression RBRACKET
     { BBinaryExpression BImage $1 $3 }
   
   | Expression RESTRICTION Expression
@@ -610,7 +695,7 @@ Expression
     
   | LAMBDA VariablesListProtected DOT LPAR Predicate VBAR Expression RPAR
     { BQuantifiedExpression BLambdaExpression $2 $5 $7 }
-  | Expression LPAR Expression RPAR  -- TODO conflict (precedence added)
+  | Expression LPAR Expression RPAR
     { BBinaryExpression BApplication $1 $3 }
   | FNC LPAR Expression RPAR
     { BUnaryExpression BFunctionTransformation $3 }
@@ -666,9 +751,9 @@ Expression
     { BIdentifier (BIdent "MININT") BCurrent }
     
   | EMPTY_SEQUENCE
-    { BIdentifier (BIdent "{}") BCurrent }  -- TODO do something else with me
+    { BIdentifier (BIdent "{}") BCurrent }
   | EMPTY_SET
-    { BIdentifier (BIdent "[]") BCurrent }  -- TODO do something else with me
+    { BIdentifier (BIdent "[]") BCurrent }
   | INTEGER
     { BIdentifier (BIdent "INTEGER") BCurrent }
   | NATURAL
