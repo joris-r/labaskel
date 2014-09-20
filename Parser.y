@@ -335,11 +335,11 @@ BIJECTION_PARTIAL { Bijection_partial }
 
 Component
   : MACHINE Ident ComponentClauses END
-    { BMachine $2 $3 }
+    { BComponent BMachine $2 $3 }
   | REFINEMENT Ident ComponentClauses END
-    { BRefinement $2 $3 }
+    { BComponent BRefinement $2 $3 }
   | IMPLEMENTATION Ident ComponentClauses END
-    { BImplementation $2 $3 }
+    { BComponent BImplementation $2 $3 }
     
 ComponentClauses
   : {- empty -}

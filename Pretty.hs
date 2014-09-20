@@ -8,19 +8,15 @@ import BTree
 indent = nest 2
 
 prettyBComponent :: BComponent -> Doc
-prettyBComponent (BMachine name clauses) =
-  text "MACHINE" <+> text (unBIdent name) $$
-  vcat (map prettyBClause clauses) $$
-  text "END"
-prettyBComponent (BRefinement name clauses) =
-  text "REFINEMENT" <+> text (unBIdent name) $$
-  vcat (map prettyBClause clauses) $$
-  text "END"
-prettyBComponent (BImplementation name clauses) =
-  text "IMPLEMENTATION" <+> text (unBIdent name) $$
+prettyBComponent (BComponent componentType name clauses) =
+  prettyBComponentType componentType <+> text (unBIdent name) $$
   vcat (map prettyBClause clauses) $$
   text "END"
   
+prettyBComponentType :: BComponentType -> Doc
+prettyBComponentType BMachine = text "MACHINE"
+prettyBComponentType BRefinement = text "REFINEMENT"
+prettyBComponentType BImplementation = text "IMPLEMENTATION"
   
 prettyBClause :: BClause -> Doc
 

@@ -12,9 +12,13 @@ unBIdent :: BIdent -> String
 unBIdent (BIdent a) = a
 
 data BComponent
-  = BMachine BIdent [BClause] -- TODO use another type than [a]
-  | BRefinement BIdent [BClause]
-  | BImplementation BIdent [BClause]
+  = BComponent BComponentType BIdent [BClause] -- TODO use another type than [a]
+  deriving(Show, Read, Eq)
+  
+data BComponentType
+  = BMachine
+  | BRefinement
+  | BImplementation
   deriving(Show, Read, Eq)
   
 data BClause

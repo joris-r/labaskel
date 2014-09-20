@@ -14,12 +14,15 @@ import Pretty
 
 
 instance Arbitrary BComponent where
-  arbitrary = oneof
-    [ liftM2 BMachine arbitrary arbitrary
-    , liftM2 BRefinement arbitrary arbitrary
-    , liftM2 BImplementation arbitrary arbitrary
-    ]
+  arbitrary = liftM3 BComponent arbitrary arbitrary arbitrary
 
+instance Arbitrary BComponentType where
+  arbitrary = elements
+    [ BMachine
+    , BRefinement
+    , BImplementation
+    ]
+    
 instance Arbitrary BIdent where
   arbitrary = elements . (map BIdent) $ ["x","y","z","var","toto"]
 
