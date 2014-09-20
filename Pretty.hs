@@ -38,11 +38,11 @@ prettyBClause (BPromotes vars) =
 prettyBClause (BRefines name) =
   text "REFINES" <+> text (unBIdent name)
   
-prettyBClause (BImports name) =
-  text "IMPORTS" <+> text (unBIdent name)
+prettyBClause (BImports names) =
+  text "IMPORTS" <+> prettyVariablesList names
   
-prettyBClause (BSees name) =
-  text "SEES" <+> text (unBIdent name)
+prettyBClause (BSees names) =
+  text "SEES" <+> prettyVariablesList names
   
 prettyBClause (BSetClause decl) =
   text "SETS" <+> cat (punctuate semi (map prettyBSetDeclaration decl))

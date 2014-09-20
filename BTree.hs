@@ -28,8 +28,8 @@ data BClause
   | BAbstractConstants [BIdent]
   | BPromotes [BIdent]
   | BRefines BIdent
-  | BImports BIdent
-  | BSees BIdent
+  | BImports [BIdent]
+  | BSees [BIdent]
   | BSetClause [BSetDeclaration]
   | BProperties BPredicate
   | BInvariant BPredicate

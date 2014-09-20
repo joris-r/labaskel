@@ -346,9 +346,9 @@ ComponentClauses
     { [] }
   | ComponentClauses REFINES Ident
     { $1 ++ [BRefines $3] }
-  | ComponentClauses IMPORTS Ident
+  | ComponentClauses IMPORTS VariablesList
     { $1 ++ [BImports $3] }
-  | ComponentClauses SEES Ident
+  | ComponentClauses SEES VariablesList
     { $1 ++ [BSees $3] }
   | ComponentClauses SETS SetDeclaration
     { $1 ++ [BSetClause $3] }

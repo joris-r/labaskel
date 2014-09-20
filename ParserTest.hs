@@ -39,8 +39,8 @@ instance Arbitrary BClause where
     , liftM BValues (listOf1 (arbitrary))
     , liftM BInitialisation arbitrary
     , liftM BRefines arbitrary
-    , liftM BImports arbitrary
-    , liftM BSees arbitrary
+    , liftM BImports (listOf1 arbitrary)
+    , liftM BSees (listOf1 arbitrary)
     , liftM BSetClause (listOf1 arbitrary)
     , liftM BOperations (listOf1 arbitrary)  -- TODO relax empty ?
     , liftM BLocalOperations (listOf1 arbitrary)  -- TODO relax empty ?
