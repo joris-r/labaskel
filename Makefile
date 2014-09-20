@@ -1,7 +1,7 @@
 run: Test
 	./Test
 
-Test: Test.hs BTree.o Lexer.o Parser.o ParserTest.o Pretty.o ParserProp.o
+Test: Test.hs BTree.o Lexer.o Parser.o ParserTest.o Pretty.o ParserProp.o Parsing.o
 	ghc --make Test
 
 clean:
@@ -30,3 +30,6 @@ ParserProp.o: ParserProp.hs
 
 Pretty.o: Pretty.hs
 	ghc Pretty.hs
+
+Parsing.o: Parsing.hs
+	ghc Parsing.hs
