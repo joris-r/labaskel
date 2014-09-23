@@ -209,7 +209,8 @@ opExpr =
   
 allKw = nub $ kwClauses ++ kwSubst ++ kwPred ++ kwExpr
 allOp = nub $ opVarious ++ opSubst ++ opPred ++ opComp ++ opExpr
-  
+
+-- TODO this generic tokenizer has problems with B keywords.
 def :: LanguageDef ()
 def = LanguageDef
         { commentStart = "/*"
@@ -221,7 +222,7 @@ def = LanguageDef
                                       --TODO restrict use of . in indentLetter
         , caseSensitive = True
         , opStart = oneOf $ nub $ map head allOp
-        , opLetter = oneOf $ nub $ concat allOp
+        , opLetter = oneOf $ nub $ concat $ map tail $ allOp
         , reservedOpNames = allOp
         , reservedNames = allKw
         }
