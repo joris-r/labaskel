@@ -42,7 +42,7 @@ data BClause
 
 data BSetDeclaration
   = BCarrierSet BIdent
-  | BEnumeratedSet [BIdent]
+  | BEnumeratedSet BIdent [BIdent]
   deriving(Show, Read, Eq)
   
 data BOperation

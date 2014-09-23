@@ -49,7 +49,7 @@ instance Arbitrary BClause where
 instance Arbitrary BSetDeclaration where
   arbitrary = oneof
     [ liftM BCarrierSet arbitrary
-    , liftM BEnumeratedSet (listOf1 arbitrary)
+    , liftM2 BEnumeratedSet arbitrary (listOf1 arbitrary)
     ]
     
 instance Arbitrary BOperation where

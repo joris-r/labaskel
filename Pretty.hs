@@ -74,7 +74,8 @@ prettyBClause (BLocalOperations ops) =
 prettyBSetDeclaration :: BSetDeclaration -> Doc
 prettyBSetDeclaration (BCarrierSet name) =
   text (unBIdent name)
-prettyBSetDeclaration (BEnumeratedSet xs) =
+prettyBSetDeclaration (BEnumeratedSet name xs) =
+  text (unBIdent name) <+> text "=" <+>
   braces (prettyVariablesList xs)
   
   

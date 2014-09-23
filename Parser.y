@@ -392,12 +392,12 @@ PredicateList
 SetDeclaration
   : Ident
     { [BCarrierSet $1] }
-  | LBRACE VariablesList RBRACE
-    { [BEnumeratedSet $2] }
+  | Ident EQUALITY LBRACE VariablesList RBRACE
+    { [BEnumeratedSet $1 $4] }
   | SetDeclaration SEMICOLON Ident
     { $1 ++ [BCarrierSet $3] }
-  | SetDeclaration SEMICOLON LBRACE VariablesList RBRACE
-    { $1 ++ [BEnumeratedSet $4] }
+  | SetDeclaration SEMICOLON Ident EQUALITY LBRACE VariablesList RBRACE
+    { $1 ++ [BEnumeratedSet $3 $6] }
     
 VariablesList
   : Ident
