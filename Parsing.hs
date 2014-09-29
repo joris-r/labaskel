@@ -173,7 +173,10 @@ opExpr =
   , "/"
   , "**"
   , "|->"
+  , "{"
   , "}"
+  , "{{" --TODO remove me
+  , "}}" --TODO remove me
   , "|"
   , ".."
   , "\\/"
@@ -234,8 +237,10 @@ TokenParser
   , reservedOp = m_reservedOp
   , reserved = m_reserved
   , semiSep1 = m_semiSep1
+  , integer = m_integer
   , whiteSpace = m_whiteSpace } = makeTokenParser def
           
+----------------------------------------------------------------  
 
 readBFile = m_whiteSpace >> readComponent <* eof
         
@@ -394,8 +399,10 @@ readOperation = do
     readInputs = do
       xs <- m_parens readIdentList
       return xs
+      
+----------------------------------------------------------------  
 
-readSub =
+readSub = (
   readSubSkip <|>
   readSubBlock <|>
   readSubPre <|>
@@ -409,7 +416,11 @@ readSub =
   readSubWhile <|>
   try readSubSimple <|>
   try readSubBecomeIn <|>
-  try readSubBecomeSuchThat
+  try readSubBecomeSuchThat <|>
+  try readSubOpeCall )
+    `chainl1` (
+            m_reservedOp ";"  *> return (BSubstitutionCompo BOpSubSeq)
+        <|> m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
 
 readSubSkip = do
   m_reserved "skip"
@@ -493,8 +504,8 @@ readSubCase = do
       return (e,sub)
 
 readSubAnyOrLet = do
-  kind <- (m_reserved "ANY" *> return BAny) <|>
-          (m_reserved "LET" *> return BLet)
+  kind <- m_reserved "ANY" *> return BAny <|>
+          m_reserved "LET" *> return BLet
   vars <- readIdentList
   m_reserved "WHERE"
   p <- readPredicate
@@ -542,22 +553,241 @@ readSubBecomeSuchThat = do
   m_reservedOp ")"
   return $ BSubstitutionSuchThat vars p
 
+readSubOpeCall = do
+  outs <- option [] (try (readIdentList <* m_reservedOp "<--"))
+  name <- readIdent
+  ins <- option [] (m_parens readExprList)
+  return $ BSubstitutionOpeCall outs name ins
+  
+----------------------------------------------------------------  
+  
+readIdentListProtected =
+  do { i <- readIdent; return [i] } <|>
+  m_parens (readIdent `sepBy` m_reservedOp ",")
+  
 readPredicateList =
   readPredicate `sepBy1` m_reservedOp ";"
 
-readPredicate = undefined
+readPredicate =
+  (buildExpressionParser predTable readPredTerm <?> "predicate") <|>
+  readQuantPred
+    
+readQuantPred = do
+  kind <- m_reservedOp "!" *> return BUniversal <|>
+          m_reservedOp "#" *> return BExistential
+  vars <- readIdentListProtected
+  m_reservedOp "."
+  p <- m_parens readPredicate
+  return $ BQuantifiedPredicate kind vars p
+
+predTable =
+  [  [Prefix (m_reserved "not" >> (return $ BUnaryPredicate BNegation))]
+  ,  [Infix (m_reservedOp "=>" >> (return $ BBinaryPredicate BImplication) ) AssocLeft
+     ,Infix (m_reservedOp "<=>" >> (return $ BBinaryPredicate BEquivalence) ) AssocLeft]
+  ,  [Infix (m_reservedOp "&" >> (return $ BBinaryPredicate BConjunction) ) AssocLeft
+     ,Infix (m_reserved "or" >> (return $ BBinaryPredicate BDisjunction) ) AssocLeft]
+  ]
+  
+readPredTerm =
+  m_parens readPredicate <|>
+  readComp
+  
+readComp = do
+  left <- readExpr
+  kind <- readOpe
+  right <- readExpr
+  return $ BComparisonPredicate kind left right
+  where
+    readOpe =
+      m_reservedOp "=" *> return BEquality <|>
+      m_reservedOp "/=" *> return BNonEquality <|>
+      m_reservedOp ":" *> return BMembership <|>
+      m_reservedOp "/:" *> return BNonMembership <|>
+      m_reservedOp "<:" *> return BInclusion <|>
+      m_reservedOp "<<" *> return BStrictInclusion <|>
+      m_reservedOp "/<:" *> return BNonInclusion <|>
+      m_reservedOp "/<<" *> return BNonStrictInclusion <|>
+      m_reservedOp "<=" *> return BInequality <|>
+      m_reservedOp "<" *> return BStrictInequality <|>
+      m_reservedOp ">=" *> return BReverseInequality <|>
+      m_reservedOp ">" *> return BStrictReverseInequality
+  
+----------------------------------------------------------------  
+
 
 readExprList =
   readExpr `sepBy1` m_reservedOp ","
   
-readExpr = buildExpressionParser table term <?> "expression"
+readExpr = buildExpressionParser exprTable exprTerm <?> "expression"
 
-table = [ [Prefix (m_reservedOp "-" >> return (BUnaryExpression BOpposite))]
-        , [Infix (m_reservedOp "+" >> return (BBinaryExpression BAddition)) AssocLeft]
-        , [Infix (m_reservedOp "-" >> return (BBinaryExpression BSubstration)) AssocLeft]
-        ]
+exprTable =
+  [
+  -- ???:
+    [Prefix (m_reservedOp "-" *> return (BUnaryExpression BOpposite))
+    ,Postfix (m_reservedOp "~" *> return (BUnaryExpression BInverse))]
+  -- 200:
+  , [Infix (m_reservedOp "**" *> return (BBinaryExpression BPower)) AssocRight]
+  -- 190:
+  , [Infix (m_reservedOp "*" *> return (BBinaryExpression BAsterisk)) AssocLeft
+    ,Infix (m_reservedOp "/" *> return (BBinaryExpression BDivision)) AssocLeft
+    ,Infix (m_reserved "mod" *> return (BBinaryExpression BModulo)) AssocLeft]
+  -- 180:
+  , [Infix (m_reservedOp "+" *> return (BBinaryExpression BAddition)) AssocLeft
+    ,Infix (m_reservedOp "-" *> return (BBinaryExpression BSubstration)) AssocLeft]
+  -- 170:
+  , [Infix (m_reservedOp ".." *> return (BBinaryExpression BInterval)) AssocLeft]
+  -- 160:
+  , [Infix (m_reservedOp "|->" *> return (BBinaryExpression BPair)) AssocLeft
+    ,Infix (m_reservedOp "\\/" *> return (BBinaryExpression BUnion)) AssocLeft
+    ,Infix (m_reservedOp "/\\" *> return (BBinaryExpression BIntersection)) AssocLeft
+    ,Infix (m_reservedOp "><" *> return (BBinaryExpression BDirectProduct)) AssocLeft
+    ,Infix (m_reservedOp "<|" *> return (BBinaryExpression BDomainRestriction)) AssocLeft
+    ,Infix (m_reservedOp "<<|" *> return (BBinaryExpression BDomainSubstraction)) AssocLeft
+    ,Infix (m_reservedOp "|>" *> return (BBinaryExpression BRangeRestriction)) AssocLeft
+    ,Infix (m_reservedOp "|>>" *> return (BBinaryExpression BRangeSubstraction)) AssocLeft
+    ,Infix (m_reservedOp "<+" *> return (BBinaryExpression BOverloading)) AssocLeft
+    ,Infix (m_reservedOp "^" *> return (BBinaryExpression BConcatenation)) AssocLeft
+    ,Infix (m_reservedOp "->" *> return (BBinaryExpression BHeadInsertion)) AssocLeft
+    ,Infix (m_reservedOp "<-" *> return (BBinaryExpression BTailInsertion)) AssocLeft
+    ,Infix (m_reservedOp "/|\\" *> return (BBinaryExpression BHeadRestriction)) AssocLeft
+    ,Infix (m_reservedOp "\\|/" *> return (BBinaryExpression BTailRestriction)) AssocLeft]
+  -- 125:
+  , [Infix (m_reservedOp "<->" *> return (BBinaryExpression BRelation)) AssocLeft
+    ,Infix (m_reservedOp "+->" *> return (BBinaryExpression BPartialFunction)) AssocLeft
+    ,Infix (m_reservedOp "-->" *> return (BBinaryExpression BTotalFunction)) AssocLeft
+    ,Infix (m_reservedOp ">+>" *> return (BBinaryExpression BPartialInjection)) AssocLeft
+    ,Infix (m_reservedOp ">->" *> return (BBinaryExpression BTotalInjection)) AssocLeft
+    ,Infix (m_reservedOp "+->>" *> return (BBinaryExpression BPartialSurjection)) AssocLeft
+    ,Infix (m_reservedOp "-->>" *> return (BBinaryExpression BTotalSurjection)) AssocLeft
+    ,Infix (m_reservedOp ">->>" *> return (BBinaryExpression BTotalBijection)) AssocLeft]
+  -- 20:
+  , [Infix (m_reservedOp ";;;" *> return (BBinaryExpression BComposition)) AssocLeft --TODO remove me
+    ,Infix (m_reservedOp "|||" *> return (BBinaryExpression BParallelProduct)) AssocLeft --TODO remove me
+    ]
+  ]
+  
+  -- TODO expr[expr]
+  -- TODO expr(expr)
 
-term = m_parens readExpr
-       <|> (m_reserved "TRUE" >> return (BIdentifier (BIdent "TRUE") BCurrent))
-       <|> (m_reserved "FALSE" >> return (BIdentifier (BIdent "FALSE") BCurrent))
+exprTerm =
+  readValueIdent <|>
+  m_parens readExpr <|>
+  readNumber <|>
+  readSpecialIdent <|>
+  readBoolConv <|>
+  readBuiltinCall <|>
+  readBuiltinCallCouple <|>
+  readQuantExpr <|>
+  readSetExpr
+
+readValueIdent = do
+  x <- readIdent
+  suffix <- option BCurrent (m_reservedOp "$0" *> return BPrevious)
+  return $ BIdentifier x suffix
+
+readNumber = do
+  n <- m_integer
+  return $ BNumber n
+  
+readBoolConv = do
+  m_reserved "bool"
+  p <- m_parens readPredicate
+  return $ BBoolConversion p
+  
+readSpecialIdent =
+  specialKeyword "TRUE" <|>
+  specialKeyword "FALSE" <|>
+  specialKeyword "MAXINT" <|>
+  specialKeyword "MININT" <|>
+  specialKeyword "INTEGER" <|>
+  specialKeyword "NATURAL" <|>
+  specialKeyword "NATURAL1" <|>
+  specialKeyword "NAT" <|>
+  specialKeyword "NAT1" <|>
+  specialKeyword "INT" <|>
+  specialKeyword "BOOL"
+  where
+    specialKeyword keyword =
+      m_reserved keyword *> return (BIdentifier (BIdent keyword) BCurrent)
+
+readBuiltinCall = do
+  kind <- ope
+  e <- m_parens readExpr
+  return $ BUnaryExpression kind e
+  where
+    ope =
+      m_reserved "max" *> return BMaximum <|>
+      m_reserved "min" *> return BMinimum <|>
+      m_reserved "card" *> return BCardinality <|>
+      m_reserved "POW" *> return BPowerSet <|>
+      m_reserved "POW1" *> return BNonEmptyPowerSet <|>
+      m_reserved "FIN" *> return BFinitePowerSet <|>
+      m_reserved "FIN1" *> return BNonEmptyFinitePowerSet <|>
+      m_reserved "union" *> return BGeneralizedUnion <|>
+      m_reserved "inter" *> return BGeneralizedIntersection <|>
+      m_reserved "id" *> return BIdentity <|>
+      m_reserved "closure" *> return BClosure <|>
+      m_reserved "closure1" *> return BNonReflexiveClosure <|>
+      m_reserved "dom" *> return BDomain <|>
+      m_reserved "ran" *> return BRange <|>
+      m_reserved "fnc" *> return BFunctionTransformation <|>
+      m_reserved "rel" *> return BRelationTransformation <|>
+      m_reserved "seq" *> return BSequence <|>
+      m_reserved "seq1" *> return BNonEmptySequence <|>
+      m_reserved "iseq" *> return BInjectiveSequence <|>
+      m_reserved "iseq1" *> return BNonEmptyInjectiveSequence <|>
+      m_reserved "perm" *> return BPermutation <|>
+      m_reserved "size" *> return BSize <|>
+      m_reserved "first" *> return BFirst <|>
+      m_reserved "last" *> return BLast <|>
+      m_reserved "front" *> return BFront <|>
+      m_reserved "tail" *> return BTail <|>
+      m_reserved "rev" *> return BRev <|>
+      m_reserved "conc" *> return BGeneralizedConcatenation
+      
+readBuiltinCallCouple = do
+  kind <- m_reserved "prj1" *> return BLeftProjection <|>
+          m_reserved "prj2" *> return BRightProjection <|>
+          m_reserved "iterate" *> return BIteration
+  m_reservedOp "("
+  e <- readExpr
+  m_reservedOp ","
+  f <- readExpr
+  m_reservedOp ")"
+  return $ BBinaryExpression kind e f
+
+readQuantExpr = do
+  kind <- m_reserved "SIGMA" *> return BSum <|>
+          m_reserved "PI" *> return BProduct <|>
+          m_reserved "UNION" *> return BQuantifiedUnion <|>
+          m_reserved "INTER" *> return BQuantifiedIntersection <|>
+          m_reservedOp "%" *> return BLambdaExpression
+  xs <- readIdentListProtected
+  m_reservedOp "."
+  m_reservedOp "("
+  p <- readPredicate
+  m_reservedOp "|"
+  e <- readExpr
+  m_reservedOp ")"
+  return $ BQuantifiedExpression kind xs p e
+
+readSetExpr = do
+  do m_reservedOp "{"
+     xs <- readIdentList
+     m_reservedOp "|"
+     p <- readPredicate
+     m_reservedOp "}"
+     return $ BSetComprehension xs p
+  <|>
+  do m_reservedOp "{{" -- TODO remove me
+     es <- readExprList
+     m_reservedOp "}}"
+     return $ BSetExtension es
+  
+readSetExpr = do
+  m_reservedOp "["
+  xs <- readExprList
+  m_reservedOp "]"
+  return $ BSequenceExtension xs p --TODO factorize BTree with BSetExtension
+
 

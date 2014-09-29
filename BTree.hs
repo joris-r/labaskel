@@ -134,8 +134,8 @@ data BOperatorUnaExpr
   | BGeneralizedIntersection
   | BIdentity
   | BInverse
-  | BClosure
-  | BNonReflexiveClosure
+  | BClosure  -- TODO check number of parameters
+  | BNonReflexiveClosure  -- TODO check number of parameters
   | BDomain
   | BRange
   | BFunctionTransformation
@@ -166,12 +166,12 @@ data BOperatorBinExpr
   | BUnion
   | BIntersection
   | BRelation
-  | BLeftProjection
-  | BRightProjection
+  | BLeftProjection -- TODO bug: this have 3 parameters
+  | BRightProjection -- TODO bug: this have 3 parameters
   | BComposition
   | BDirectProduct
   | BParallelProduct
-  | BIteration
+  | BIteration -- TODO check number of parameters
   | BImage
   | BDomainRestriction
   | BDomainSubstraction
