@@ -660,9 +660,8 @@ opApply = do
                    m_reservedOp "[" *> return (BImage, m_reservedOp  "]")
   return (BBinaryExpression kind, tailOp)
   
-readExpr = chainl1WithTail
-              (buildExpressionParser exprTable exprTerm <?> "expression")
-              opApply
+readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
+  where termAndCall = chainl1WithTail exprTerm opApply
 
 exprTable =
   [
