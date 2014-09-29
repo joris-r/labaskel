@@ -1,24 +1,18 @@
 
 import Test.QuickCheck
 
-import Lexer
-import Parser
 import ParserTest
-import ParserProp
 import Pretty
 import BTree
 import Parsing
 import qualified Text.Parsec as P
 
 parseFile :: FilePath -> IO()
-parseFile x = do
-  input <- readFile x
-  putStr . show . prettyBComponent . parse . scan $ input
-
-printBTreeFile :: FilePath -> IO()
-printBTreeFile f = do
-  input <- readFile f
-  putStrLn . show . prettyBComponent $ (read input)
+parseFile path = do
+  input <- readFile path
+  case P.parse readBFile path input of
+       Right c -> putStrLn $ show $ prettyBComponent c
+       Left e -> putStrLn $ show e
   
 {- Doesn't work ...
 giveSome :: IO [String]
@@ -38,7 +32,6 @@ testParsing btree =
   
 main = do
   quickCheckWith stdArgs{maxSize=5, maxSuccess=10000} testParsing
-  quickCheckWith stdArgs{maxSize=5, maxSuccess=10000} prop_prettyPrintAndParseAreInverse
   
 -- TODO add test with prettyPrinting without spaces
 -- TODO add test with prettyPrinting with minimal parenthesis
