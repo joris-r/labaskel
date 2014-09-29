@@ -214,7 +214,7 @@ sizedBExpr 0 = oneof
 sizedBExpr n = frequency
   [ (1, liftM2 BIdentifier arbitrary arbitrary)
   , (1, liftM BNumber (elements [0,1,3,25,100]))
-  , (1, liftM BBoolConversion (sizedBPred $ 1))  -- looping back!
+  , (1, liftM BBoolConversion (sizedBPred $ n-1))  -- looping back!
   , (2, liftM2 BUnaryExpression arbitrary
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
@@ -222,11 +222,11 @@ sizedBExpr n = frequency
   , (1, liftM4 BQuantifiedExpression 
                arbitrary
                (listOf1 arbitrary)
-               (sizedBPred $ 1)  -- looping back!
+               (sizedBPred $ n-1)  -- looping back!
                (sizedBExpr $ n-1))
   , (1, liftM2 BSetComprehension
                (listOf1 arbitrary)
-               (sizedBPred $ 1))  -- looping back!
+               (sizedBPred $ n-1))  -- looping back!
   , (2, liftM BSetExtension (vectorOf 1 (sizedBExpr $ (n-1))))
   , (2, liftM BSetExtension (vectorOf 2 (sizedBExpr $ (n-1) `div` 2)))
   , (2, liftM BSetExtension (vectorOf 3 (sizedBExpr $ (n-1) `div` 3)))

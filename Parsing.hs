@@ -48,6 +48,9 @@ opVarious =
   , "||"
   , "*"
   , "-"
+  , ";;" -- TODO remove me
+  , ";;;" -- TODO remove me
+  , "|||" -- TODO remove me
   ]
   
 kwSubst =
@@ -226,7 +229,8 @@ def = LanguageDef
                                       --TODO restrict use of . in indentLetter
         , caseSensitive = True
         , opStart = oneOf $ nub $ map head allOp
-        , opLetter = oneOf $ nub $ concat $ map tail $ allOp
+        , opLetter = undefined
+--        , opLetter = oneOf $ nub $ concat $ map tail $ allOp
         , reservedOpNames = allOp
         , reservedNames = allKw
         }
@@ -234,13 +238,37 @@ def = LanguageDef
 TokenParser
   { parens = m_parens
   , identifier = m_identifier
-  , reservedOp = m_reservedOp
+--  , reservedOp = m_reservedOp
   , reserved = m_reserved
   , semiSep1 = m_semiSep1
   , integer = m_integer
-  , whiteSpace = m_whiteSpace } = makeTokenParser def
-          
-----------------------------------------------------------------  
+  , whiteSpace = m_whiteSpace
+  , symbol = m_symbol
+  , lexeme = m_lexeme
+  } = makeTokenParser def
+  
+  
+m_reservedOp name =
+  m_lexeme $ try $
+  do{ string name
+    ; notFollowedBy (possibleLongerOpe name) <?> ("end of " ++ show name)
+    }
+        
+possibleLongerOpe name = oneOf (nub starting)
+  where
+    starting = map (!! (length name)) possibles
+    possibles = filter (\x -> take (length name) x == name) longEnough
+    longEnough = filter (\x -> length name < length x) allOp
+{-
+m_reservedOp name = do
+  found <-choice (map (try . m_symbol) allOp)
+  if found == name
+  then do
+    return found
+  else do
+    parserFail ("found " ++ found ++ ", expected " ++ name)
+-}     
+----------------------------------------------------------------
 
 readBFile = m_whiteSpace >> readComponent <* eof
         
@@ -382,7 +410,7 @@ readSets = do
       return $ BEnumeratedSet name names
 
 readOperationList =
-  readOperation `sepBy1` m_reservedOp ";;" --TODO change me later
+  readOperation `sepBy1` (m_reservedOp ";;") --TODO change me later
 
 readOperation = do
   outputs <- option [] (try readOutputs)
@@ -504,12 +532,12 @@ readSubCase = do
       return (e,sub)
 
 readSubAnyOrLet = do
-  kind <- m_reserved "ANY" *> return BAny <|>
-          m_reserved "LET" *> return BLet
+  (kind,kw,kw') <- m_reserved "ANY" *> return (BAny, "WHERE", "THEN") <|>
+                   m_reserved "LET" *> return (BLet, "BE", "IN")
   vars <- readIdentList
-  m_reserved "WHERE"
+  m_reserved kw
   p <- readPredicate
-  m_reserved "THEN"
+  m_reserved kw'
   sub <- readSub
   m_reserved "END"
   return $ BSubstitutionSpecVar kind vars p sub
@@ -569,8 +597,7 @@ readPredicateList =
   readPredicate `sepBy1` m_reservedOp ";"
 
 readPredicate =
-  (buildExpressionParser predTable readPredTerm <?> "predicate") <|>
-  readQuantPred
+  buildExpressionParser predTable readPredTerm <?> "predicate"
     
 readQuantPred = do
   kind <- m_reservedOp "!" *> return BUniversal <|>
@@ -589,7 +616,8 @@ predTable =
   ]
   
 readPredTerm =
-  m_parens readPredicate <|>
+  try (m_parens readPredicate) <|>
+  readQuantPred <|>
   readComp
   
 readComp = do
@@ -604,9 +632,9 @@ readComp = do
       m_reservedOp ":" *> return BMembership <|>
       m_reservedOp "/:" *> return BNonMembership <|>
       m_reservedOp "<:" *> return BInclusion <|>
-      m_reservedOp "<<" *> return BStrictInclusion <|>
+      m_reservedOp "<<:" *> return BStrictInclusion <|>
       m_reservedOp "/<:" *> return BNonInclusion <|>
-      m_reservedOp "/<<" *> return BNonStrictInclusion <|>
+      m_reservedOp "/<<:" *> return BNonStrictInclusion <|>
       m_reservedOp "<=" *> return BInequality <|>
       m_reservedOp "<" *> return BStrictInequality <|>
       m_reservedOp ">=" *> return BReverseInequality <|>
@@ -617,8 +645,24 @@ readComp = do
 
 readExprList =
   readExpr `sepBy1` m_reservedOp ","
+
+chainl1WithTail p op = do { x <- p; rest x }
+  where
+    rest x = do { (f,q) <- op
+                ; y <- p
+                ; q
+                ; rest (f x y)
+                }
+              <|> return x
+              
+opApply = do
+  (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, m_reservedOp  ")") <|>
+                   m_reservedOp "[" *> return (BImage, m_reservedOp  "]")
+  return (BBinaryExpression kind, tailOp)
   
-readExpr = buildExpressionParser exprTable exprTerm <?> "expression"
+readExpr = chainl1WithTail
+              (buildExpressionParser exprTable exprTerm <?> "expression")
+              opApply
 
 exprTable =
   [
@@ -665,9 +709,6 @@ exprTable =
     ,Infix (m_reservedOp "|||" *> return (BBinaryExpression BParallelProduct)) AssocLeft --TODO remove me
     ]
   ]
-  
-  -- TODO expr[expr]
-  -- TODO expr(expr)
 
 exprTerm =
   readValueIdent <|>
@@ -678,8 +719,9 @@ exprTerm =
   readBuiltinCall <|>
   readBuiltinCallCouple <|>
   readQuantExpr <|>
-  readSetExpr
-
+  readSetExpr <|>
+  readListExpr
+  
 readValueIdent = do
   x <- readIdent
   suffix <- option BCurrent (m_reservedOp "$0" *> return BPrevious)
@@ -784,10 +826,10 @@ readSetExpr = do
      m_reservedOp "}}"
      return $ BSetExtension es
   
-readSetExpr = do
+readListExpr = do
   m_reservedOp "["
   xs <- readExprList
   m_reservedOp "]"
-  return $ BSequenceExtension xs p --TODO factorize BTree with BSetExtension
+  return $ BSequenceExtension xs --TODO factorize BTree with BSetExtension
 
 

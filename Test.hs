@@ -37,8 +37,8 @@ testParsing btree =
       _ -> False
   
 main = do
-  quickCheckWith stdArgs{maxSize=3, maxSuccess=100} testParsing
-  quickCheckWith stdArgs{maxSize=10, maxSuccess=100} prop_prettyPrintAndParseAreInverse
+  quickCheckWith stdArgs{maxSize=5, maxSuccess=10000} testParsing
+  quickCheckWith stdArgs{maxSize=5, maxSuccess=10000} prop_prettyPrintAndParseAreInverse
   
   -- TODO add test with prettyPrinting without spaces
   -- TODO add test with prettyPrinting with minimal parenthesis
@@ -46,3 +46,11 @@ main = do
 toy s = case P.parse readBFile "B file" s of
         Right c -> putStrLn $ show $ prettyBComponent c
         Left e -> putStrLn $ show e
+        
+toyTmp = do
+  input <- readFile "tmp"
+  let tree = read input :: BComponent
+  let src = show . prettyBComponent $ tree
+  putStrLn src
+  toy src
+  
