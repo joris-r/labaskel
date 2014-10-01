@@ -11,8 +11,6 @@ import Data.List(nub)
 import BTree
 
 
--- TODO this generic tokenizer has problems with B keywords.
-def :: LanguageDef ()
 def = LanguageDef
         { commentStart = "/*"
         , commentEnd = "*/"
@@ -23,8 +21,10 @@ def = LanguageDef
                                       --TODO restrict use of . in indentLetter
         , caseSensitive = True
         , opStart = oneOf $ nub $ map head allOp
+        -- the opLetter should be something like oneOf $ nub $ concat $ map tail $ allOp
+        -- but that its not strict enought.
+        -- therefore I do not use this mecanism from Parsec
         , opLetter = undefined
---        , opLetter = oneOf $ nub $ concat $ map tail $ allOp
         , reservedOpNames = allOp
         , reservedNames = allKw
         }
@@ -32,36 +32,33 @@ def = LanguageDef
 TokenParser
   { parens = m_parens
   , identifier = m_identifier
---  , reservedOp = m_reservedOp
   , reserved = m_reserved
-  , semiSep1 = m_semiSep1
   , integer = m_integer
   , whiteSpace = m_whiteSpace
-  , symbol = m_symbol
   , lexeme = m_lexeme
   } = makeTokenParser def
   
   
+-- I do not use the vanilla Parsec reservedOp because there
+-- are too many operators that are prefix of other operators.
+-- instead my m_reservedOp only accept operators from the 
+-- list allOp.
+
 m_reservedOp name =
   m_lexeme $ try $
   do{ string name
     ; notFollowedBy (possibleLongerOpe name) <?> ("end of " ++ show name)
     }
         
+        
+-- This thing is probably not very fast.
+-- I think it should be possible to do some pre-computation.
+
 possibleLongerOpe name = oneOf (nub starting)
   where
     starting = map (!! (length name)) possibles
     possibles = filter (\x -> take (length name) x == name) longEnough
     longEnough = filter (\x -> length name < length x) allOp
-{-
-m_reservedOp name = do
-  found <-choice (map (try . m_symbol) allOp)
-  if found == name
-  then do
-    return found
-  else do
-    parserFail ("found " ++ found ++ ", expected " ++ name)
--}     
 ----------------------------------------------------------------
 
 readBFile = m_whiteSpace >> readComponent <* eof
@@ -74,23 +71,13 @@ readIdentList =
   readIdent `sepBy1` m_reservedOp ","
         
 readComponent = do
-  componentType <- readMachine <|> readRefinement <|> readImplementation
+  componentType <- m_reserved "MACHINE" *>  return BMachine <|>
+                   m_reserved "REFINEMENT" *>  return BRefinement <|>
+                   m_reserved "IMPLEMENTATION" *>  return BImplementation
   name <- readIdent
   clauses <- readClauses
   m_reserved "END"
   return $ BComponent componentType name clauses
-  
-readMachine = do
-  m_reserved "MACHINE"
-  return BMachine
-  
-readRefinement =  do
-  m_reserved "REFINEMENT"
-  return BRefinement
-  
-readImplementation =  do
-  m_reserved "IMPLEMENTATION"
-  return BImplementation
   
 -- TODO use Text.Parsec.Perm instead of many
 readClauses = many $
