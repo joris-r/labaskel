@@ -34,7 +34,7 @@ data BClause
   | BProperties BPredicate
   | BInvariant BPredicate
   | BAssertions [BPredicate]
-  | BValues [BPredicate]
+  | BValues [BPredicate] -- TODO replace predicate by a list of (var,expr)
   | BInitialisation BSubstitution
   | BOperations [BOperation]
   | BLocalOperations [BOperation]
