@@ -1,4 +1,4 @@
-module Parsing where
+module Parsing(runBParser) where
 
 import Control.Applicative((<*),(*>))
 import Data.Functor.Identity
@@ -59,6 +59,27 @@ possibleLongerOpe name = oneOf (nub starting)
     starting = map (!! (length name)) possibles
     possibles = filter (\x -> take (length name) x == name) longEnough
     longEnough = filter (\x -> length name < length x) allOp
+    
+----------------------------------------------------------------
+
+-- I need a particular state to resolve some ambiguities of the
+-- B language:
+--  * I use acceptCommaPair to discriminate between the comma used
+--    in the list of expressions and the comma used in the pairs.
+--    The rule I use is: the pair inside a expression list must
+--    be surrounded by parenthesis.
+
+type ParsingType = Parsec String ParsingState
+
+data ParsingState = ParsingState
+  { acceptCommaPair :: Bool
+  } deriving (Show)
+
+startParsingState = ParsingState { acceptCommaPair = True }
+
+runBParser :: SourceName -> String -> Either ParseError BComponent
+runBParser = runParser readBFile startParsingState
+
 ----------------------------------------------------------------
 
 readBFile = m_whiteSpace >> readComponent <* eof
@@ -70,6 +91,7 @@ readIdent = do
 readIdentList =
   readIdent `sepBy1` m_reservedOp ","
         
+readComponent :: ParsingType BComponent
 readComponent = do
   componentType <- m_reserved "MACHINE" *>  return BMachine <|>
                    m_reserved "REFINEMENT" *>  return BRefinement <|>
@@ -424,8 +446,13 @@ readComp = do
 ----------------------------------------------------------------  
 
 
-readExprList =
-  readExpr `sepBy1` m_reservedOp ","
+readExprList = do
+  s <- getState
+  let previous = acceptCommaPair s
+  updateState $ \s -> s { acceptCommaPair = False }
+  es <- readExpr `sepBy1` m_reservedOp ","
+  updateState $ \s -> s { acceptCommaPair = previous }
+  return es
 
 chainl1WithTail p op = do { x <- p; rest x }
   where
@@ -437,12 +464,34 @@ chainl1WithTail p op = do { x <- p; rest x }
               <|> return x
               
 opApply = do
-  (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, m_reservedOp  ")") <|>
-                   m_reservedOp "[" *> return (BImage, m_reservedOp  "]")
+  s <- getState
+  let previous = acceptCommaPair s
+  (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, tailParen ")" previous) <|>
+                   m_reservedOp "[" *> return (BImage, tailParen "]" previous)
+  updateState $ \s -> s { acceptCommaPair = True }
   return (BBinaryExpression kind, tailOp)
+  where
+    tailParen op prev = do
+      m_reservedOp op
+      updateState $ \s -> s { acceptCommaPair = prev }
   
+
+-- This one fail to accept comma pair inside application argument ("f(x,x)")
+-- but give a high priority to the application ("2+f(x)" gives "2+(f(x))")
+{-
 readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
   where termAndCall = chainl1WithTail exprTerm opApply
+-}
+
+
+-- This one accept comma pair inside application argument ("f(x,x)")
+-- but fail on the priority of the application ("2+f(x)" gives "(2+f)(x)")
+readExpr = chainl1WithTail xx opApply
+  where
+    xx = buildExpressionParser exprTable exprTerm <?> "expression"
+
+-- without application at all
+--readExpr = buildExpressionParser exprTable exprTerm <?> "expression"
 
 exprTable =
   [
@@ -461,7 +510,7 @@ exprTable =
   -- 170:
   , [Infix (m_reservedOp ".." *> return (BBinaryExpression BInterval)) AssocLeft]
   -- 160:
-  , [Infix (m_reservedOp "|->" *> return (BBinaryExpression BPair)) AssocLeft
+  , [Infix (m_reservedOp "|->" *> return (BPair BMapsToPair)) AssocLeft
     ,Infix (m_reservedOp "\\/" *> return (BBinaryExpression BUnion)) AssocLeft
     ,Infix (m_reservedOp "/\\" *> return (BBinaryExpression BIntersection)) AssocLeft
     ,Infix (m_reservedOp "><" *> return (BBinaryExpression BDirectProduct)) AssocLeft
@@ -484,15 +533,26 @@ exprTable =
     ,Infix (m_reservedOp "+->>" *> return (BBinaryExpression BPartialSurjection)) AssocLeft
     ,Infix (m_reservedOp "-->>" *> return (BBinaryExpression BTotalSurjection)) AssocLeft
     ,Infix (m_reservedOp ">->>" *> return (BBinaryExpression BTotalBijection)) AssocLeft]
+  -- 115:
+  , [Infix readCommaPair AssocLeft]
   -- 20:
   , [Infix (m_reservedOp ";;;" *> return (BBinaryExpression BComposition)) AssocLeft --TODO remove me
     ,Infix (m_reservedOp "|||" *> return (BBinaryExpression BParallelProduct)) AssocLeft --TODO remove me
     ]
-  ]
+  ] where
+    readCommaPair = do
+      s <- getState
+      if acceptCommaPair s
+      then do
+        m_reservedOp "," *> return (BPair BCommaPair)
+      else do
+        -- this message will never be seen (normally) because all failures
+        -- will be backtracked by a Parsec try functor somewhere
+        parserFail "Pairs with comma are forbidden here."
 
 exprTerm =
   readValueIdent <|>
-  m_parens readExpr <|>
+  readParenExpr <|>
   readNumber <|>
   readSpecialIdent <|>
   readBoolConv <|>
@@ -501,6 +561,14 @@ exprTerm =
   readQuantExpr <|>
   readSetExpr <|>
   readListExpr
+  where
+    readParenExpr = do
+      s <- getState
+      let previous = acceptCommaPair s
+      updateState $ \s -> s { acceptCommaPair = True }
+      e <- m_parens readExpr
+      updateState $ \s -> s { acceptCommaPair = previous }
+      return e
   
 readValueIdent = do
   x <- readIdent
@@ -571,11 +639,15 @@ readBuiltinCallCouple = do
   kind <- m_reserved "prj1" *> return BLeftProjection <|>
           m_reserved "prj2" *> return BRightProjection <|>
           m_reserved "iterate" *> return BIteration
+  s <- getState
+  let previous = acceptCommaPair s
+  updateState $ \s -> s { acceptCommaPair = False }
   m_reservedOp "("
   e <- readExpr
   m_reservedOp ","
   f <- readExpr
   m_reservedOp ")"
+  updateState $ \s -> s { acceptCommaPair = previous }
   return $ BBinaryExpression kind e f
 
 readQuantExpr = do
@@ -693,7 +765,7 @@ opSubst =
   [ "<--"
   , "::"
   , ":="
-  , ":("
+  , ":("  -- TODO split this lexem in two ?
   ]
 
 kwPred =

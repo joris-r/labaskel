@@ -219,6 +219,8 @@ sizedBExpr n = frequency
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
                (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
+  , (2, liftM3 BPair arbitrary
+               (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
   , (1, liftM4 BQuantifiedExpression 
                arbitrary
                (listOf1 arbitrary)
@@ -237,6 +239,9 @@ sizedBExpr n = frequency
 
   
 -- TODO is there a way to have this automatically for all enumerated types?
+  
+instance Arbitrary BPairShape where
+  arbitrary = elements [BCommaPair, BMapsToPair]
   
 instance Arbitrary BSuffix where
   arbitrary = elements [BCurrent, BPrevious]
@@ -322,7 +327,6 @@ instance Arbitrary BOperatorBinExpr where
     , BDivision
     , BModulo
     , BPower
-    , BPair
     , BInterval
     , BUnion
     , BIntersection

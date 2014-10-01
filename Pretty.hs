@@ -294,6 +294,9 @@ prettyBExpression (BBinaryExpression BApplication e f) =
 prettyBExpression (BBinaryExpression op e f) =
   parens (prettyBExpression e <+> prettyBOperatorBinExpr op <+> prettyBExpression f)
 
+prettyBExpression (BPair shape e f) =
+  parens (prettyBExpression e <+> prettyBPairShape shape <+> prettyBExpression f)
+  
 prettyBExpression (BQuantifiedExpression op vars p e) =
   prettyBOperatorQuantExpr op <+>
   prettyVariablesListProtected vars <+> text "." <+>
@@ -319,6 +322,9 @@ prettyBExpression (BSequenceExtension exprs) =
   (hsep . (punctuate (text ",")) . (map prettyBExpression) $ exprs )<+>
   text "]"
 
+prettyBPairShape BCommaPair = text ","
+prettyBPairShape BMapsToPair = text "|->"
+  
 prettyBOperatorBinPred :: BOperatorBinPred -> Doc
 prettyBOperatorBinPred BConjunction = text "&"
 prettyBOperatorBinPred BDisjunction = text "or"
@@ -389,7 +395,6 @@ prettyBOperatorBinExpr BAsterisk = text "*"
 prettyBOperatorBinExpr BDivision = text "/"
 prettyBOperatorBinExpr BModulo = text "mod"
 prettyBOperatorBinExpr BPower = text "**"
-prettyBOperatorBinExpr BPair = text "|->"
 prettyBOperatorBinExpr BInterval = text ".."
 prettyBOperatorBinExpr BUnion = text "\\/"
 prettyBOperatorBinExpr BIntersection = text "/\\"

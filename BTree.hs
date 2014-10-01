@@ -84,12 +84,15 @@ data BExpression
   | BNumber Integer
   | BUnaryExpression BOperatorUnaExpr BExpression
   | BBinaryExpression BOperatorBinExpr BExpression BExpression
+  | BPair BPairShape BExpression BExpression
   | BQuantifiedExpression BOperatorQuantExpr [BIdent] BPredicate BExpression
   | BSetComprehension [BIdent] BPredicate
   | BSetExtension [BExpression]
   | BSequenceExtension [BExpression]
   deriving(Show, Read, Eq)
 
+data BPairShape = BCommaPair | BMapsToPair deriving(Show, Read, Eq)
+  
 data BSuffix = BCurrent | BPrevious deriving(Show, Read, Eq)
   
 data BOperatorUnaPred = BNegation deriving(Show, Read, Eq)
@@ -161,7 +164,6 @@ data BOperatorBinExpr
   | BDivision
   | BModulo
   | BPower
-  | BPair
   | BInterval
   | BUnion
   | BIntersection

@@ -5,12 +5,11 @@ import ParserTest
 import Pretty
 import BTree
 import Parsing
-import qualified Text.Parsec as P
 
 parseFile :: FilePath -> IO()
 parseFile path = do
   input <- readFile path
-  case P.parse readBFile path input of
+  case runBParser path input of
        Right c -> putStrLn $ show $ prettyBComponent c
        Left e -> putStrLn $ show e
   
@@ -25,7 +24,7 @@ giveSome = do
 
 testParsing :: BComponent -> Bool
 testParsing btree =
-  let res = P.parse readBFile "B parser test" . show . prettyBComponent $ btree in
+  let res = runBParser "B parser test" . show . prettyBComponent $ btree in
     case res of
       Right b -> btree == b
       _ -> False
@@ -36,8 +35,13 @@ main = do
 -- TODO add test with prettyPrinting without spaces
 -- TODO add test with prettyPrinting with minimal parenthesis
 -- TODO add parenthesis to the BTree and redo test (it's currently a weak testing)
-      
-toy s = case P.parse readBFile "B file" s of
+-- TODO add testing for "MACHINE m PROPERTIES A=2+f(x) END" 
+--      that should give 2+(f(x)) and not (2+f)(x)
+--      not tested because of extra parenthesis from the prettyPrinter
+-- TODO "MACHINE m INITIALISATION y := xx( yy(1) ) END" doesn't work
+-- TODO "MACHINE m INITIALISATION x := f(x,x) END" is not tested
+
+toy s = case runBParser "B file" s of
         Right c -> putStrLn $ show $ prettyBComponent c
         Left e -> putStrLn $ show e
         
