@@ -478,18 +478,18 @@ opApply = do
   
 
 -- This one fail to accept comma pair inside application argument ("f(x,x)")
--- but give a high priority to the application ("2+f(x)" gives "2+(f(x))")
-{-
+-- but give a correct high priority to the application ("2+f(x)" gives "2+(f(x))")
 readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
   where termAndCall = chainl1WithTail exprTerm opApply
--}
 
 
 -- This one accept comma pair inside application argument ("f(x,x)")
 -- but fail on the priority of the application ("2+f(x)" gives "(2+f)(x)")
+{-
 readExpr = chainl1WithTail xx opApply
   where
     xx = buildExpressionParser exprTable exprTerm <?> "expression"
+-}
 
 -- without application at all
 --readExpr = buildExpressionParser exprTable exprTerm <?> "expression"
@@ -548,7 +548,7 @@ exprTable =
         m_reservedOp "," *> return (BPair BCommaPair)
       else do
         -- this message will never be seen (normally) because all failures
-        -- will be backtracked by a Parsec try functor somewhere
+        -- will be backtracked by a Parsec "try" combinator somewhere
         parserFail "Pairs with comma are forbidden here."
 
 exprTerm =
