@@ -458,8 +458,9 @@ chainl1WithTail p op = do { x <- p; rest x }
   where
     rest x = do { (f,q) <- op
                 ; y <- p
+                ; res <- rest (f x y)
                 ; q
-                ; rest (f x y)
+                ; return res
                 }
               <|> return x
               
