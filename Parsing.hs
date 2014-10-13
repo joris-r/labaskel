@@ -454,10 +454,10 @@ readExprList = do
   updateState $ \s -> s { acceptCommaPair = previous }
   return es
 
-chainl1WithTail p op = do { x <- p; rest x }
+chainl1WithTail p rec op = do { x <- p; rest x }
   where
     rest x = do { (f,q) <- op
-                ; y <- p
+                ; y <- rec
                 ; res <- rest (f x y)
                 ; q
                 ; return res
@@ -477,22 +477,9 @@ opApply = do
       updateState $ \s -> s { acceptCommaPair = prev }
   
 
--- This one fail to accept comma pair inside application argument ("f(x,x)")
--- but give a correct high priority to the application ("2+f(x)" gives "2+(f(x))")
 readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
-  where termAndCall = chainl1WithTail exprTerm opApply
+  where termAndCall = chainl1WithTail exprTerm readExpr opApply
 
-
--- This one accept comma pair inside application argument ("f(x,x)")
--- but fail on the priority of the application ("2+f(x)" gives "(2+f)(x)")
-{-
-readExpr = chainl1WithTail xx opApply
-  where
-    xx = buildExpressionParser exprTable exprTerm <?> "expression"
--}
-
--- without application at all
---readExpr = buildExpressionParser exprTable exprTerm <?> "expression"
 
 exprTable =
   [

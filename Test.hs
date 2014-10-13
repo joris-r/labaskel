@@ -39,7 +39,6 @@ main = do
 
 
 -- TODO add testing for "MACHINE m PROPERTIES A=2+f(x) END" 
---      that should give 2+(f(x)) and not (2+f)(x)
 --      not tested because of extra parenthesis from the prettyPrinter
 
   quickCheckWith stdArgs{maxSuccess=1} $
@@ -48,7 +47,7 @@ main = do
     show (runBParser "test" "MACHINE m PROPERTIES A=2+(f(x)) END")
 
     
--- TODO "MACHINE m INITIALISATION y := xx( yy(1) ) END" doesn't work
+-- TODO "MACHINE m INITIALISATION y := xx( yy(1) ) END" is not tested
 
   quickCheckWith stdArgs{maxSuccess=1} $
     show (runBParser "test" "MACHINE m INITIALISATION y := xx( yy(1) ) END")
