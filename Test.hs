@@ -67,7 +67,11 @@ main = do
     ==
     show (runBParser "test" "MACHINE m INITIALISATION x := f((2+x)) END")
                
-
+  quickCheckWith stdArgs{maxSuccess=1} $
+    show (runBParser "test" "MACHINE m INITIALISATION x := {a,b,c,d |- 1=2} END")
+    ==
+    show (runBParser "test" "MACHINE m INITIALISATION x := { a, b, c, d | ((-1) = 2) } END")
+               
 toy s = case runBParser "B file" s of
         Right c -> putStrLn $ show $ prettyBComponent c
         Left e -> putStrLn $ show e
