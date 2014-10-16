@@ -653,18 +653,23 @@ readQuantExpr = do
   m_reservedOp ")"
   return $ BQuantifiedExpression kind xs p e
 
-readSetExpr = do
-  do m_reservedOp "{"
-     xs <- readIdentList
-     m_reservedOp "|"
-     p <- readPredicate
-     m_reservedOp "}"
-     return $ BSetComprehension xs p
-  <|>
-  do m_reservedOp "{{" -- TODO remove me
-     es <- readExprList
-     m_reservedOp "}}"
-     return $ BSetExtension es
+readSetExpr =
+  try readSetExprCompr <|>
+  readSetExprExtens
+  
+readSetExprCompr = do
+  m_reservedOp "{"
+  xs <- readIdentList
+  m_reservedOp "|"
+  p <- readPredicate
+  m_reservedOp "}"
+  return $ BSetComprehension xs p
+  
+readSetExprExtens = do
+  m_reservedOp "{"
+  es <- readExprList
+  m_reservedOp "}"
+  return $ BSetExtension es
   
 readListExpr = do
   m_reservedOp "["
@@ -846,8 +851,6 @@ opExpr =
   , "|->"
   , "{"
   , "}"
-  , "{{" --TODO remove me
-  , "}}" --TODO remove me
   , "|"
   , ".."
   , "\\/"

@@ -313,9 +313,9 @@ prettyBExpression (BSetComprehension vars p) =
   text "}"
   
 prettyBExpression (BSetExtension exprs) = 
-  text "{{" <+>
+  text "{" <+>
   (hsep . (punctuate (text ",")) . (map prettyBExpression) $ exprs )<+>
-  text "}}"
+  text "}"
 
 prettyBExpression (BSequenceExtension exprs) = 
   text "[" <+>
