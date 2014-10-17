@@ -79,7 +79,7 @@ data BPredicate
   deriving(Show, Read, Eq)
   
 data BExpression
-  = BIdentifier BIdent BSuffix
+  = BIdentifier BIdent BSuffix -- TODO restrict suffix "$0" to become such as subst
   | BBoolConversion BPredicate
   | BNumber Integer
   | BUnaryExpression BOperatorUnaExpr BExpression
