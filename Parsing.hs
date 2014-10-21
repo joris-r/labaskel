@@ -227,14 +227,14 @@ readSets = do
       return $ BEnumeratedSet name names
 
 readOperationList =
-  readOperation `sepBy1` (m_reservedOp ";;") --TODO change me later
+  readOperation `sepBy1` (m_reservedOp ";")
 
 readOperation = do
   outputs <- option [] (try readOutputs)
   name <- readIdent
   inputs <- option [] readInputs
   m_reservedOp "="
-  sub <- readSub
+  sub <- readFirstSub
   return $ BOperation outputs name inputs sub
   where
     readOutputs = do
@@ -247,7 +247,22 @@ readOperation = do
       
 ----------------------------------------------------------------  
 
-readSub = (
+-- This is all the substitutions but ";".
+-- It's needed as the body of an operation because of the
+-- ambiguity of the ";" (";" is used to separate both operation and
+-- instruction).
+-- TODO check if the AtelierbB parser accept somethink like
+--      "MACHINE xx OPERATIONS op=  x:=2 ; x:=3  END"
+readFirstSub =
+  readBlockishSub `chainl1` (
+            m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
+
+readSub =
+  readBlockishSub `chainl1` (
+            m_reservedOp ";"  *> return (BSubstitutionCompo BOpSubSeq)
+        <|> m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
+
+readBlockishSub =
   readSubSkip <|>
   readSubBlock <|>
   readSubPre <|>
@@ -262,11 +277,9 @@ readSub = (
   try readSubSimple <|>
   try readSubBecomeIn <|>
   try readSubBecomeSuchThat <|>
-  try readSubOpeCall )
-    `chainl1` (
-            m_reservedOp ";"  *> return (BSubstitutionCompo BOpSubSeq)
-        <|> m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
-
+  try readSubOpeCall
+  -- TODO those 4 "try" give bad error reporting: should factorize?
+        
 readSubSkip = do
   m_reserved "skip"
   return BSubstitutionSkip
@@ -735,7 +748,6 @@ opVarious =
   , "||"
   , "*"
   , "-"
-  , ";;" -- TODO remove me
   , ";;;" -- TODO remove me
   , "|||" -- TODO remove me
   ]

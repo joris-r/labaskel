@@ -68,8 +68,19 @@ instance Arbitrary BSetDeclaration where
     
 instance Arbitrary BOperation where
   arbitrary = oneof
-    [ liftM4 BOperation arbitrary arbitrary arbitrary arbitrary
+    [ liftM4 BOperation arbitrary arbitrary arbitrary protectedSubstitution
     ]
+    where
+      -- enclose naked ";" with "BEGIN ... END" block, examples:
+      -- "a ; b" becomes "BEGIN a;b END"
+      -- "a || b ; c" becoms "a || BEGIN b;c END" 
+      protectedSubstitution = do
+        sub <- arbitrary
+        return $ protect sub
+      protect sub@(BSubstitutionCompo BOpSubSeq lhs rhs) = BSubstitutionBlock sub
+      protect (BSubstitutionCompo BOpSubParal lhs rhs) =
+        BSubstitutionCompo BOpSubParal (protect lhs) (protect rhs)
+      protect x = x
     
 instance Arbitrary BSubstitution where
   arbitrary = sized sizedBSub

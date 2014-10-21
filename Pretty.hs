@@ -78,11 +78,11 @@ prettyBClause (BInitialisation s) =
   
 prettyBClause (BOperations ops) =
   text "OPERATIONS" $$
-  indent (vcat ((punctuate (text ";;")) (map prettyBOperation ops)))
+  indent (vcat ((punctuate (text ";")) (map prettyBOperation ops)))
   
 prettyBClause (BLocalOperations ops) =
   text "LOCAL_OPERATIONS" $$
-  indent (vcat ((punctuate (text ";;")) (map prettyBOperation ops)))
+  indent (vcat ((punctuate (text ";")) (map prettyBOperation ops)))
 
 
 prettyBSetDeclaration :: BSetDeclaration -> Doc
