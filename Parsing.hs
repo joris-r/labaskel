@@ -82,14 +82,23 @@ possibleLongerOpe name = oneOf (nub starting)
 --    in the list of expressions and the comma used in the pairs.
 --    The rule I use is: the pair inside a expression list must
 --    be surrounded by parenthesis.
+-- * Same idea for the ";" and "||" used to separate sequence of
+--   substution (and also separate operations for ";") and to combine
+--   relations in expressions (see acceptRelOpe).
+--   The rule: the relation expression operators ";" and "||" must
+--   appears inside a parenthesis "()", bracket "{}" or square bracket "[]".
 
 type ParsingType = Parsec String ParsingState
 
 data ParsingState = ParsingState
   { acceptCommaPair :: Bool
+  , acceptRelOpe :: Bool
   } deriving (Show)
 
-startParsingState = ParsingState { acceptCommaPair = True }
+startParsingState = ParsingState
+  { acceptCommaPair = True
+  , acceptRelOpe = False
+  }
 
 runBParser :: SourceName -> String -> Either ParseError BComponent
 runBParser = runParser readBFile startParsingState
@@ -493,15 +502,16 @@ chainl1WithTail p rec op = do { x <- p; rest x }
               
 opApply = do
   s <- getState
-  let previous = acceptCommaPair s
-  (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, tailParen ")" previous) <|>
-                   m_reservedOp "[" *> return (BImage, tailParen "]" previous)
-  updateState $ \s -> s { acceptCommaPair = True }
+  let prevComma = acceptCommaPair s
+  let prevRelProd = acceptRelOpe s
+  (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, tailParen ")" prevComma prevRelProd) <|>
+                   m_reservedOp "[" *> return (BImage, tailParen "]" prevComma prevRelProd)
+  updateState $ \s -> s { acceptCommaPair = True, acceptRelOpe = True }
   return (BBinaryExpression kind, tailOp)
   where
-    tailParen op prev = do
+    tailParen op prevC prevRP = do
       m_reservedOp op
-      updateState $ \s -> s { acceptCommaPair = prev }
+      updateState $ \s -> s { acceptCommaPair = prevC, acceptRelOpe = prevRP }
   
 
 readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
@@ -551,8 +561,8 @@ exprTable =
   -- 115:
   , [Infix readCommaPair AssocLeft]
   -- 20:
-  , [Infix (m_reservedOp ";;;" *> return (BBinaryExpression BComposition)) AssocLeft --TODO remove me
-    ,Infix (m_reservedOp "|||" *> return (BBinaryExpression BParallelProduct)) AssocLeft --TODO remove me
+  , [Infix readRelationComposition AssocLeft
+    ,Infix readRelationDirectProduct AssocLeft
     ]
   ] where
     readCommaPair = do
@@ -564,6 +574,20 @@ exprTable =
         -- this message will never be seen (normally) because all failures
         -- will be backtracked by a Parsec "try" combinator somewhere
         parserFail "Pairs with comma are forbidden here."
+    readRelationComposition = do
+      s <- getState
+      if acceptRelOpe s
+      then do
+        m_reservedOp ";" *> return (BBinaryExpression BComposition)
+      else do
+        parserFail "Relation composition is forbidden here."
+    readRelationDirectProduct = do
+      s <- getState
+      if acceptRelOpe s
+      then do
+        m_reservedOp "||" *> return (BBinaryExpression BParallelProduct)
+      else do
+        parserFail "Relation direct product is forbidden here."
 
 exprTerm =
   readValueIdent <|>
@@ -579,10 +603,11 @@ exprTerm =
   where
     readParenExpr = do
       s <- getState
-      let previous = acceptCommaPair s
-      updateState $ \s -> s { acceptCommaPair = True }
+      let prevComma = acceptCommaPair s
+      let prevRelProd = acceptRelOpe s
+      updateState $ \s -> s { acceptCommaPair = True, acceptRelOpe = True }
       e <- m_parens readExpr
-      updateState $ \s -> s { acceptCommaPair = previous }
+      updateState $ \s -> s { acceptCommaPair = prevComma, acceptRelOpe = prevRelProd}
       return e
   
 readValueIdent = do
@@ -688,13 +713,21 @@ readSetExprCompr = do
   m_reservedOp "{"
   xs <- readIdentList
   m_reservedOp "|"
+  s <- getState
+  let prevRelProd = acceptRelOpe s
+  updateState $ \s -> s { acceptRelOpe = True }
   p <- readPredicate
+  updateState $ \s -> s { acceptRelOpe = prevRelProd }
   m_reservedOp "}"
   return $ BSetComprehension xs p
   
 readSetExprExtens = do
   m_reservedOp "{"
+  s <- getState
+  let prevRelProd = acceptRelOpe s
+  updateState $ \s -> s { acceptRelOpe = True }
   es <- readExprList
+  updateState $ \s -> s { acceptRelOpe = prevRelProd }
   m_reservedOp "}"
   return $ BSetExtension es
   
@@ -748,8 +781,6 @@ opVarious =
   , "||"
   , "*"
   , "-"
-  , ";;;" -- TODO remove me
-  , "|||" -- TODO remove me
   ]
   
 kwSubst =
