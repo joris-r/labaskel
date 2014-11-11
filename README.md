@@ -10,6 +10,38 @@ The name can stand for (you chose)
 This tool parse the "B Method" language in Haskell.
 Nothing more right now.
 
+# What's done
+
+- basic pretty-printer
+- generating random BTree with Quickcheck
+- testing with Quickcheck (printing, parsing and printing again must give an equivalent BTree)
+- try to do LALR grammar with alex/happy (processind ambiguities is problematic)
+- do a combinatory parser with the Parsec library (wihtout ambigious stuff)
+- add a state to the parser in order to accept pair with comma
+- parse ambigious "{ ... }" construct
+- force block around semi-colon sequences
+- force parenthesis around ";" and "||" relation operators
+
+
+# What's needed (bug or shortcoming)
+
+- better pretty-printing (only necessary parenthesis) for better testing
+- fix the buggy tokenizer
+
+
+# What could be done
+
+- remove things from the BTree that could be defined regulary (like a std lib)
+- use this shrinking stuff of quickcheck
+- process B definitions
+- add payload data to the BTree
+- record source location while parsing
+- type inference
+- proof obligation generation
+- a nice pretty-printing with smart indentation
+- refactoring capability
+- add the endless stream of verifications for architecture, visibility, etc 
+
 
 # Arguments for the language choice
 

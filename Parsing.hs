@@ -35,8 +35,8 @@ def = LanguageDef
                                       --TODO restrict use of . in indentLetter
         , caseSensitive = True
         , opStart = oneOf $ nub $ map head allOp
-        -- the opLetter should be something like oneOf $ nub $ concat $ map tail $ allOp
-        -- but that its not strict enought.
+        -- the opLetter should be something like "oneOf $ nub $ concat $ map tail $ allOp"
+        -- but that its not strict enough.
         -- therefore I do not use this mecanism from Parsec
         , opLetter = undefined
         , reservedOpNames = allOp
@@ -262,6 +262,7 @@ readOperation = do
 -- instruction).
 -- TODO check if the AtelierbB parser accept somethink like
 --      "MACHINE xx OPERATIONS op=  x:=2 ; x:=3  END"
+--      --> no, it don't
 readFirstSub =
   readBlockishSub `chainl1` (
             m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
@@ -271,6 +272,7 @@ readSub =
             m_reservedOp ";"  *> return (BSubstitutionCompo BOpSubSeq)
         <|> m_reservedOp "||" *> return (BSubstitutionCompo BOpSubParal) )
 
+-- TODO this name is inacurate
 readBlockishSub =
   readSubSkip <|>
   readSubBlock <|>
@@ -490,6 +492,7 @@ readExprList = do
   updateState $ \s -> s { acceptCommaPair = previous }
   return es
 
+  -- TODO explain this
 chainl1WithTail p rec op = do { x <- p; rest x }
   where
     rest x = do { (f,q) <- op
@@ -815,7 +818,7 @@ opSubst =
   [ "<--"
   , "::"
   , ":="
-  , ":("  -- TODO split this lexem in two ?
+  , ":("  -- TODO split this lexem in two (as AtelierB)
   ]
 
 kwPred =
