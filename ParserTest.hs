@@ -19,16 +19,18 @@ import Control.Monad
 
 import BTree
 import Pretty
+import Util
 
 -- TODO do a better job for controlling the size. We need something
 -- that control the depth and the width of the trees. This should be
 -- done for all kind of trees such as Substitution, Predicate or Expression.
 -- We need also a better control of the number of looping back from Expression
 -- to predicate
+-- ==> DONE, isn't is ?
 
 
 instance Arbitrary BComponent where
-  arbitrary = liftM3 BComponent arbitrary arbitrary arbitrary
+  arbitrary = fmap addMinParenComp (liftM3 BComponent arbitrary arbitrary arbitrary)
 
 instance Arbitrary BComponentType where
   arbitrary = elements
@@ -244,7 +246,9 @@ sizedBExpr n = frequency
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
                (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
-  , (2, liftM3 BPair arbitrary
+  , (2, liftM3 BBuiltinCall arbitrary
+               (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
+  , (2, liftM3 BApply arbitrary
                (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
   , (1, liftM4 BQuantifiedExpression 
                arbitrary
@@ -264,9 +268,6 @@ sizedBExpr n = frequency
 
   
 -- TODO is there a way to have this automatically for all enumerated types?
-  
-instance Arbitrary BPairShape where
-  arbitrary = elements [BCommaPair, BMapsToPair]
   
 instance Arbitrary BSuffix where
   arbitrary = elements [BCurrent, BPrevious]
@@ -356,13 +357,9 @@ instance Arbitrary BOperatorBinExpr where
     , BUnion
     , BIntersection
     , BRelation
-    , BLeftProjection
-    , BRightProjection
     , BComposition
     , BDirectProduct
     , BParallelProduct
-    , BIteration
-    , BImage
     , BDomainRestriction
     , BDomainSubstraction
     , BRangeRestriction
@@ -375,12 +372,13 @@ instance Arbitrary BOperatorBinExpr where
     , BPartialSurjection
     , BTotalSurjection
     , BTotalBijection
-    , BApplication
     , BConcatenation
     , BHeadInsertion
     , BTailInsertion
     , BHeadRestriction
     , BTailRestriction
+    , BCommaPair
+    , BMapsToPair
     ]
     
 instance Arbitrary BOperatorQuantExpr where
@@ -390,5 +388,18 @@ instance Arbitrary BOperatorQuantExpr where
     , BQuantifiedUnion
     , BQuantifiedIntersection
     , BLambdaExpression
+    ]
+    
+instance Arbitrary BOperatorBuiltinCall where
+  arbitrary = elements
+    [ BLeftProjection
+    , BRightProjection
+    , BIteration
+    ]
+
+instance Arbitrary BOperatorApply where
+  arbitrary = elements
+    [ BImage
+    , BApplication
     ]
   

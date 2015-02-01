@@ -12,6 +12,8 @@
 --    See the License for the specific language governing permissions and
 --    limitations under the License. 
 
+--module Test where
+
 
 import Test.QuickCheck
 
@@ -19,6 +21,7 @@ import ParserTest
 import Pretty
 import BTree
 import Parsing
+import Util
 
 parseFile :: FilePath -> IO()
 parseFile path = do
@@ -36,6 +39,9 @@ giveSome = do
   return xs'
 -}
 
+-- TODO this version compare the btree with min parenthesis added
+--      it's also possible to compare the result of the printing+parsing
+--      to the original tree by removing parenthesis
 testParsing :: BComponent -> Bool
 testParsing btree =
   let res = runBParser "B parser test" . show . prettyBComponent $ btree in
@@ -43,9 +49,10 @@ testParsing btree =
       Right b -> btree == b
       _ -> False
   
-
+-- TODO test that apply twice min parenthesis does not change
+  
 main = do
-  quickCheckWith stdArgs{maxSize=5, maxSuccess=10000} testParsing
+  quickCheckWith stdArgs{maxSize=6, maxSuccess=100000} testParsing
   
 -- TODO add test with prettyPrinting without spaces
 -- TODO add test with prettyPrinting with minimal parenthesis
@@ -85,6 +92,16 @@ main = do
     show (runBParser "test" "MACHINE m INITIALISATION x := {a,b,c,d |- 1=2} END")
     ==
     show (runBParser "test" "MACHINE m INITIALISATION x := { a, b, c, d | ((-1) = 2) } END")
+    
+  quickCheckWith stdArgs{maxSuccess=1} $
+    show (runBParser "test" "MACHINE m PROPERTIES f ~ ~ = f END")
+    ==
+    show (runBParser "test" "MACHINE m INITIALISATION (f ~) ~ = f END")
+               
+  quickCheckWith stdArgs{maxSuccess=1} $
+    show (runBParser "test" "MACHINE m PROPERTIES - - -2 = 2 END")
+    ==
+    show (runBParser "test" "MACHINE m INITIALISATION - (- ( -2)) = 2 END")
                
 toy s = case runBParser "B file" s of
         Right c -> putStrLn $ show $ prettyBComponent c
@@ -92,8 +109,22 @@ toy s = case runBParser "B file" s of
         
 toyTmp = do
   input <- readFile "tmp"
-  let tree = read input :: BComponent
-  let src = show . prettyBComponent $ tree
-  putStrLn src
-  toy src
+  let tree = read input
+  putStrLn "--------------"
+  putStrLn "Original Tree:"
+  putStrLn "--------------"
+  putStrLn $ show tree
+  putStrLn "----------------------"
+  putStrLn "Original Tree Printed:"
+  putStrLn "----------------------"
+  putStrLn $ show (prettyBComponent tree)
+  putStrLn "-------------------------------------"
+  putStrLn "Source with Minimum Parenthesis:"
+  putStrLn "-------------------------------------"
+  let source = (show . prettyBComponent . addMinParenComp) tree
+  putStrLn source
+  putStrLn "--------------"
+  putStrLn "Reparsed Tree:"
+  putStrLn "--------------"
+  putStrLn $ show (runBParser "toyTmp" source)
   

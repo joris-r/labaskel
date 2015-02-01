@@ -31,6 +31,7 @@ Nothing more right now.
 
 # What could be done
 
+- add an XML output and test the program versus the XML output of BComp on some projects
 - remove things from the BTree that could be defined regulary (like a std lib)
 - use this shrinking stuff of quickcheck
 - process B definitions
@@ -49,6 +50,7 @@ Must have:
 
 - strong static typing (for safety)
 - automatic memory management (for safety, and speed of development)
+- multi-threading support
 - safe design (runtime error must be avoided)
 - several compilers available (possibility to do a double chain of executables)
 - can do native compiling (for performance and easier distribution)

@@ -449,17 +449,26 @@ readQuantPred = do
   return $ BQuantifiedPredicate kind vars p
 
 predTable =
-  [  [Prefix (m_reserved "not" >> (return $ BUnaryPredicate BNegation))]
-  ,  [Infix (m_reservedOp "=>" >> (return $ BBinaryPredicate BImplication) ) AssocLeft
-     ,Infix (m_reservedOp "<=>" >> (return $ BBinaryPredicate BEquivalence) ) AssocLeft]
+  [
+  -- ??
+     [Prefix (m_reserved "not" >> (return $ BUnaryPredicate BNegation))] -- according to the spec should enforce the parenthesis after but it's nod done in this parser (and not really necessary)
+  -- 60
+  ,  [Infix (m_reservedOp "<=>" >> (return $ BBinaryPredicate BEquivalence) ) AssocLeft]
+  -- 40
   ,  [Infix (m_reservedOp "&" >> (return $ BBinaryPredicate BConjunction) ) AssocLeft
      ,Infix (m_reserved "or" >> (return $ BBinaryPredicate BDisjunction) ) AssocLeft]
+  -- 30
+  ,  [Infix (m_reservedOp "=>" >> (return $ BBinaryPredicate BImplication) ) AssocLeft]
   ]
   
 readPredTerm =
-  try (m_parens readPredicate) <|>
+  try readParenPred <|>
   readQuantPred <|>
   readComp
+  
+readParenPred = do
+  p <- m_parens readPredicate
+  return $ BParenPredicate p
   
 readComp = do
   left <- readExpr
@@ -510,7 +519,7 @@ opApply = do
   (kind,tailOp) <- m_reservedOp "(" *> return (BApplication, tailParen ")" prevComma prevRelProd) <|>
                    m_reservedOp "[" *> return (BImage, tailParen "]" prevComma prevRelProd)
   updateState $ \s -> s { acceptCommaPair = True, acceptRelOpe = True }
-  return (BBinaryExpression kind, tailOp)
+  return (BApply kind, tailOp)
   where
     tailParen op prevC prevRP = do
       m_reservedOp op
@@ -538,7 +547,7 @@ exprTable =
   -- 170:
   , [Infix (m_reservedOp ".." *> return (BBinaryExpression BInterval)) AssocLeft]
   -- 160:
-  , [Infix (m_reservedOp "|->" *> return (BPair BMapsToPair)) AssocLeft
+  , [Infix (m_reservedOp "|->" *> return (BBinaryExpression BMapsToPair)) AssocLeft
     ,Infix (m_reservedOp "\\/" *> return (BBinaryExpression BUnion)) AssocLeft
     ,Infix (m_reservedOp "/\\" *> return (BBinaryExpression BIntersection)) AssocLeft
     ,Infix (m_reservedOp "><" *> return (BBinaryExpression BDirectProduct)) AssocLeft
@@ -572,7 +581,7 @@ exprTable =
       s <- getState
       if acceptCommaPair s
       then do
-        m_reservedOp "," *> return (BPair BCommaPair)
+        m_reservedOp "," *> return (BBinaryExpression BCommaPair)
       else do
         -- this message will never be seen (normally) because all failures
         -- will be backtracked by a Parsec "try" combinator somewhere
@@ -611,7 +620,7 @@ exprTerm =
       updateState $ \s -> s { acceptCommaPair = True, acceptRelOpe = True }
       e <- m_parens readExpr
       updateState $ \s -> s { acceptCommaPair = prevComma, acceptRelOpe = prevRelProd}
-      return e
+      return $ BParenExpression e
   
 readValueIdent = do
   x <- readIdent
@@ -619,12 +628,18 @@ readValueIdent = do
   return $ BIdentifier x suffix
 
 readNumber = do
-  n <- m_integer
+  n <- m_integer -- TODO should read only natural and use prefix unary "-" ??
   return $ BNumber n
   
 readBoolConv = do
   m_reserved "bool"
-  p <- m_parens readPredicate
+  s <- getState
+  let prevComma = acceptCommaPair s
+  updateState $ \s -> s { acceptCommaPair = True }
+  m_reservedOp "("
+  p <- readPredicate
+  m_reservedOp ")"
+  updateState $ \s -> s { acceptCommaPair = prevComma }
   return $ BBoolConversion p
   
 readSpecialIdent =
@@ -641,7 +656,7 @@ readSpecialIdent =
   specialKeyword "BOOL"
   where
     specialKeyword keyword =
-      m_reserved keyword *> return (BIdentifier (BIdent keyword) BCurrent)
+      m_reserved keyword *> return (BIdentifier (BIdent keyword) BCurrent) -- TODO add into BTree ?
 
 readBuiltinCall = do
   kind <- ope
@@ -691,7 +706,7 @@ readBuiltinCallCouple = do
   f <- readExpr
   m_reservedOp ")"
   updateState $ \s -> s { acceptCommaPair = previous }
-  return $ BBinaryExpression kind e f
+  return $ BBuiltinCall kind e f
 
 readQuantExpr = do
   kind <- m_reserved "SIGMA" *> return BSum <|>
@@ -701,11 +716,15 @@ readQuantExpr = do
           m_reservedOp "%" *> return BLambdaExpression
   xs <- readIdentListProtected
   m_reservedOp "."
+  s <- getState
+  let previous = acceptCommaPair s
+  updateState $ \s -> s { acceptCommaPair = True }
   m_reservedOp "("
   p <- readPredicate
   m_reservedOp "|"
   e <- readExpr
   m_reservedOp ")"
+  updateState $ \s -> s { acceptCommaPair = previous }
   return $ BQuantifiedExpression kind xs p e
 
 readSetExpr =
@@ -718,9 +737,10 @@ readSetExprCompr = do
   m_reservedOp "|"
   s <- getState
   let prevRelProd = acceptRelOpe s
-  updateState $ \s -> s { acceptRelOpe = True }
+  let prevComma = acceptCommaPair s
+  updateState $ \s -> s { acceptRelOpe = True, acceptCommaPair = True }
   p <- readPredicate
-  updateState $ \s -> s { acceptRelOpe = prevRelProd }
+  updateState $ \s -> s { acceptRelOpe = prevRelProd, acceptCommaPair = prevComma }
   m_reservedOp "}"
   return $ BSetComprehension xs p
   
@@ -754,10 +774,10 @@ kwClauses =
   , "SEES"
   , "IMPORTS"
   , "PROMOTES"
-  , "USES"
-  , "EXTENDS"
-  , "INCLUDES"
-  , "CONSTRAINTS"
+  , "USES" -- TODO clause
+  , "EXTENDS" -- TODO clause
+  , "INCLUDES" -- TODO clause
+  , "CONSTRAINTS" -- TODO clause
   , "SETS"
   , "CONSTANTS"
   , "ABSTRACT_CONSTANTS"

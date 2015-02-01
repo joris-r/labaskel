@@ -1,7 +1,7 @@
 run: Test
 	./Test
 
-Test: Test.hs BTree.o ParserTest.o Pretty.o Parsing.o
+Test: Test.hs BTree.o ParserTest.o Pretty.o Parsing.o BRec.o Util.o
 	ghc --make Test
 
 clean:
@@ -18,3 +18,11 @@ Pretty.o: Pretty.hs
 
 Parsing.o: Parsing.hs
 	ghc Parsing.hs
+
+BRec.o: BRec.hs
+	ghc BRec.hs
+
+Util.o: Util.hs
+	ghc Util.hs
+
+#TODO dependency are missing !!

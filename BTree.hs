@@ -86,10 +86,11 @@ data BOperatorSpecVar = BAny | BLet deriving(Show, Read, Eq)
 data BOperatorSubComp = BOpSubParal | BOpSubSeq deriving(Show, Read, Eq)
 
 data BPredicate
-  = BUnaryPredicate BOperatorUnaPred BPredicate
+  = BUnaryPredicate BOperatorUnaPred BPredicate -- TODO replace by just a negation
   | BBinaryPredicate BOperatorBinPred BPredicate BPredicate
   | BQuantifiedPredicate BOperatorQuantPred [BIdent] BPredicate
   | BComparisonPredicate BOperatorBinPredTerm BExpression BExpression
+  | BParenPredicate BPredicate
   deriving(Show, Read, Eq)
   
 data BExpression
@@ -98,15 +99,15 @@ data BExpression
   | BNumber Integer
   | BUnaryExpression BOperatorUnaExpr BExpression
   | BBinaryExpression BOperatorBinExpr BExpression BExpression
-  | BPair BPairShape BExpression BExpression
+  | BBuiltinCall BOperatorBuiltinCall BExpression BExpression
+  | BApply BOperatorApply BExpression BExpression
   | BQuantifiedExpression BOperatorQuantExpr [BIdent] BPredicate BExpression
   | BSetComprehension [BIdent] BPredicate
-  | BSetExtension [BExpression]
+  | BSetExtension [BExpression] --TODO factorize BSetExtension and BSequenceExtension ?
   | BSequenceExtension [BExpression]
+  | BParenExpression BExpression
   deriving(Show, Read, Eq)
 
-data BPairShape = BCommaPair | BMapsToPair deriving(Show, Read, Eq)
-  
 data BSuffix = BCurrent | BPrevious deriving(Show, Read, Eq)
   
 data BOperatorUnaPred = BNegation deriving(Show, Read, Eq)
@@ -182,13 +183,9 @@ data BOperatorBinExpr
   | BUnion
   | BIntersection
   | BRelation
-  | BLeftProjection -- TODO bug: this have 3 parameters
-  | BRightProjection -- TODO bug: this have 3 parameters
   | BComposition
   | BDirectProduct
   | BParallelProduct
-  | BIteration -- TODO check number of parameters
-  | BImage
   | BDomainRestriction
   | BDomainSubstraction
   | BRangeRestriction
@@ -201,12 +198,13 @@ data BOperatorBinExpr
   | BPartialSurjection
   | BTotalSurjection
   | BTotalBijection
-  | BApplication
   | BConcatenation
   | BHeadInsertion
   | BTailInsertion
   | BHeadRestriction
   | BTailRestriction
+  | BMapsToPair
+  | BCommaPair
   deriving(Show, Read, Eq)
 
 data BOperatorQuantExpr
@@ -215,4 +213,15 @@ data BOperatorQuantExpr
   | BQuantifiedUnion
   | BQuantifiedIntersection
   | BLambdaExpression
+  deriving(Show, Read, Eq)
+  
+data BOperatorBuiltinCall
+  = BLeftProjection
+  | BRightProjection
+  | BIteration
+  deriving(Show, Read, Eq)
+
+data BOperatorApply
+  = BImage
+  | BApplication
   deriving(Show, Read, Eq)
