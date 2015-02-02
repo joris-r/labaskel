@@ -16,7 +16,7 @@ module Util(addMinParenComp) where
 
 import BTree
 import BRec
-import Pretty -- TODO remove me
+import UtilRemoveParen
 
 import Data.Maybe(fromJust)
 import Data.List(find, findIndex)
@@ -90,9 +90,11 @@ addMinParenPred ((BNPredicate (BBinaryPredicate opAbove lAbove rAbove)):_)
     = BParenPredicate n
   | otherwise
     = n
-  where sideFromAbove | lAbove == n = AssocLeft
-                      | rAbove == n = AssocRight
-                      | otherwise = error "Error: Impossible Case"
+  where
+    sideFromAbove
+      | lAbove `equalModParenPred` n = AssocLeft
+      | rAbove `equalModParenPred` n = AssocRight
+      | otherwise = error "Impossible case on the side of a binary predicate"
 
 -- always add parenthesis on the argument of "not"
 -- because it's specified like this on B method
@@ -288,20 +290,15 @@ addMinParenExpr ((BNExpression (BBinaryExpression opAbove lAbove rAbove)):_)
                              n@(BBinaryExpression op _ _)
   | op `strictLessPrioExpr` opAbove
     = BParenExpression n
-  | (op `samePrioExpr` opAbove) && (assocExpr opAbove /= sideFromAbove)
+  | (op `samePrioExpr` opAbove) && (assocExpr opAbove /= (sideFromAbove))
     = BParenExpression n
   | otherwise
     = n
-  where sideFromAbove | lAbove == n = AssocLeft
-                      | rAbove == n = AssocRight
-                      | otherwise = error "Error: Impossible Case"
-
-{-addMinParenExpr ((BNExpression (BBinaryExpression _ _ _)):_)
-                             n@(BUnaryExpression op e)
-  = BParenExpression n -- TODO remove extra parenthesis? -- USELESS ?
-  -}
-
-
+  where
+    sideFromAbove
+      | lAbove `equalModParenExpr` n = AssocLeft
+      | rAbove `equalModParenExpr` n = AssocRight
+      | otherwise = error "Impossible case on the side of a binary expression"
 
 addMinParenExpr _ n@(BBinaryExpression BComposition _ _)
   = BParenExpression n
@@ -319,24 +316,31 @@ addMinParenExpr _ (BBuiltinCall op e f)
 addMinParenExpr ((BNExpression (BUnaryExpression _ _)):_) n@(BBinaryExpression _ _ _)
   = BParenExpression n
 
--- unary operator associativity is not implemented in the parser
-addMinParenExpr ((BNExpression (BUnaryExpression _ _)):_) n@(BUnaryExpression _ _)
-  = BParenExpression n
-
 addMinParenExpr ((BNExpression (BApply _ lAbove _)):_) n@(BBinaryExpression _ _ _)
-  | lAbove == n
+  | lAbove `equalModParenExpr` n
     = BParenExpression n
   | otherwise
     = n
     
+
+-- TODO because of a shortcoming of the parser
+addMinParenExpr _ n@(BUnaryExpression _ _) = BParenExpression n
+{-
+TODO when the pattern just above is removed, put the following instead
+
+-- unary operator associativity is not implemented in the parser
+addMinParenExpr ((BNExpression (BUnaryExpression _ _)):_) n@(BUnaryExpression _ _)
+  = BParenExpression n
+
 addMinParenExpr ((BNExpression (BApply _ lAbove _)):_) n@(BUnaryExpression _ _)
-  | lAbove == n
+  | lAbove `equalModParenExpr` n
     = BParenExpression n
   | otherwise
     = n
+-}
 
 addMinParenExpr ((BNExpression (BApply _ lAbove _)):_) n@(BApply _ _ _)
-  | lAbove == n
+  | lAbove `equalModParenExpr` n
     = BParenExpression n
   | otherwise
     = n
@@ -344,4 +348,11 @@ addMinParenExpr ((BNExpression (BApply _ lAbove _)):_) n@(BApply _ _ _)
   
 addMinParenExpr _ n
   = n
+
+
+equalModParenPred l r =
+  (removeParenPred l) == (removeParenPred r)
+  
+equalModParenExpr l r =
+  (removeParenExpr l) == (removeParenExpr r)
 

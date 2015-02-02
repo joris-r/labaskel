@@ -33,6 +33,8 @@ import BTree
 
 -- TODO find a way to test this thing. For example ensuring le current element
 -- is a child of the head of the BNode list.
+-- Except that's false!! Because the rewriting is bottom-up so the current
+-- element contain already mutated children.
 
 
 data BNode
