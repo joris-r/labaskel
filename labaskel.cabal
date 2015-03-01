@@ -1,0 +1,14 @@
+name:                labaskel
+version:             0.1.0.0
+synopsis:            This tool parse the "B Method" language in Haskell
+homepage:            https://github.com/joris-r/labaskel
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Joris Rehm
+maintainer:          joris.rehm@wakusei.fr
+category:            Development
+build-type:          Simple
+cabal-version:       >=1.8
+executable labaskel
+  main-is:           Test.hs
+  build-depends:     base ==4.6.*, transformers ==0.3.*, parsec ==3.1.*, pretty ==1.1.*, QuickCheck ==2.6.*
