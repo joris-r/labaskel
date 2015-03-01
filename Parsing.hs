@@ -580,26 +580,26 @@ exprTable =
     readCommaPair = do
       s <- getState
       if acceptCommaPair s
-      then do
-        m_reservedOp "," *> return (BBinaryExpression BCommaPair)
-      else do
-        -- this message will never be seen (normally) because all failures
-        -- will be backtracked by a Parsec "try" combinator somewhere
-        parserFail "Pairs with comma are forbidden here."
+        then do
+          m_reservedOp "," *> return (BBinaryExpression BCommaPair)
+        else do
+          -- this message will never be seen (normally) because all failures
+          -- will be backtracked by a Parsec "try" combinator somewhere
+          parserFail "Pairs with comma are forbidden here."
     readRelationComposition = do
       s <- getState
       if acceptRelOpe s
-      then do
-        m_reservedOp ";" *> return (BBinaryExpression BComposition)
-      else do
-        parserFail "Relation composition is forbidden here."
+        then do
+          m_reservedOp ";" *> return (BBinaryExpression BComposition)
+        else do
+          parserFail "Relation composition is forbidden here."
     readRelationDirectProduct = do
       s <- getState
       if acceptRelOpe s
-      then do
-        m_reservedOp "||" *> return (BBinaryExpression BParallelProduct)
-      else do
-        parserFail "Relation direct product is forbidden here."
+        then do
+          m_reservedOp "||" *> return (BBinaryExpression BParallelProduct)
+        else do
+          parserFail "Relation direct product is forbidden here."
 
 exprTerm =
   readValueIdent <|>
