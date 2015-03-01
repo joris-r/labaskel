@@ -235,8 +235,8 @@ prettyBSubstitution (BSubstitutionCompo op s t) =
 prettyBSubstitution (BSubstitutionVar vars s) =
   text "VAR" <+>
   prettyVariablesList vars <+>
-  text "IN" <+>
-  prettyBSubstitution s <+>
+  text "IN" $$
+  indent (prettyBSubstitution s) $$
   text "END"
 
 prettyBSubstitution (BSubstitutionOpeCall [] name []) =
