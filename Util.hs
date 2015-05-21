@@ -309,8 +309,6 @@ addMinParenExpr _ (BSetExtension es)
   = BSetExtension (map parenFirstPair es)
 addMinParenExpr _ (BSequenceExtension es)
   = BSequenceExtension (map parenFirstPair es)
-addMinParenExpr _ (BBuiltinCall op e f)
-  = BBuiltinCall op (parenFirstPair e) (parenFirstPair f)
 
 -- all unary expr operator have higher precedence than binary expr operator
 addMinParenExpr ((BNExpression (BUnaryExpression _ _)):_) n@(BBinaryExpression _ _ _)

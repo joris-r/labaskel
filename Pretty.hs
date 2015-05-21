@@ -298,23 +298,11 @@ prettyBExpression (BUnaryExpression BOpposite e) =
   text "-" <> prettyBExpression e
 prettyBExpression (BUnaryExpression BInverse e) =
   prettyBExpression e <> text "~"
-prettyBExpression (BUnaryExpression op e) =
-  prettyBOperatorUnaExpr op <> parens(prettyBExpression e)
   
 
 prettyBExpression (BBinaryExpression op e f) =
   prettyBExpression e <+> prettyBOperatorBinExpr op <+> prettyBExpression f
 
-prettyBExpression (BBuiltinCall BLeftProjection e f) =
-  text "prj1" <> parens (
-    prettyBExpression e <+> text "," <+> prettyBExpression f )
-prettyBExpression (BBuiltinCall BRightProjection e f) =
-  text "prj2" <> parens (
-    prettyBExpression e <+> text "," <+> prettyBExpression f )
-prettyBExpression (BBuiltinCall BIteration e f) =
-  text "iterate" <> parens (
-    prettyBExpression e <+> text "," <+> prettyBExpression f )
-    
 prettyBExpression (BApply BImage e f) =
   prettyBExpression e <> brackets ( prettyBExpression f )
 prettyBExpression (BApply BApplication e f) =
@@ -373,39 +361,6 @@ prettyBOperatorBinPredTerm BStrictReverseInequality = text ">"
 prettyBOperatorQuantPred :: BOperatorQuantPred -> Doc
 prettyBOperatorQuantPred BUniversal = text "!"
 prettyBOperatorQuantPred BExistential = text "#"
-
-prettyBOperatorUnaExpr :: BOperatorUnaExpr -> Doc
--- not here becase it's a special case:
---   BOpposite
---   BInverse
-prettyBOperatorUnaExpr BMaximum = text "max"
-prettyBOperatorUnaExpr BMinimum = text "min"
-prettyBOperatorUnaExpr BCardinality = text "card"
-prettyBOperatorUnaExpr BPowerSet = text "POW"
-prettyBOperatorUnaExpr BNonEmptyPowerSet = text "POW1"
-prettyBOperatorUnaExpr BFinitePowerSet = text "FIN"
-prettyBOperatorUnaExpr BNonEmptyFinitePowerSet = text "FIN1"
-prettyBOperatorUnaExpr BGeneralizedUnion = text "union"
-prettyBOperatorUnaExpr BGeneralizedIntersection = text "inter"
-prettyBOperatorUnaExpr BIdentity = text "id"
-prettyBOperatorUnaExpr BClosure = text "closure"
-prettyBOperatorUnaExpr BNonReflexiveClosure = text "closure1"
-prettyBOperatorUnaExpr BDomain = text "dom"
-prettyBOperatorUnaExpr BRange = text "ran"
-prettyBOperatorUnaExpr BFunctionTransformation = text "fnc"
-prettyBOperatorUnaExpr BRelationTransformation = text "rel"
-prettyBOperatorUnaExpr BSequence = text "seq"
-prettyBOperatorUnaExpr BNonEmptySequence = text "seq1"
-prettyBOperatorUnaExpr BInjectiveSequence = text "iseq"
-prettyBOperatorUnaExpr BNonEmptyInjectiveSequence = text "iseq1"
-prettyBOperatorUnaExpr BPermutation = text "perm"
-prettyBOperatorUnaExpr BSize = text "size"
-prettyBOperatorUnaExpr BFirst = text "first"
-prettyBOperatorUnaExpr BLast = text "last"
-prettyBOperatorUnaExpr BFront = text "front"
-prettyBOperatorUnaExpr BTail = text "tail"
-prettyBOperatorUnaExpr BRev = text "rev"
-prettyBOperatorUnaExpr BGeneralizedConcatenation = text "conc"
 
 prettyBOperatorBinExpr :: BOperatorBinExpr -> Doc
 -- not here becase it's a special case:

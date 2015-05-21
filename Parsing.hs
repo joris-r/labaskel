@@ -605,10 +605,7 @@ exprTerm =
   readValueIdent <|>
   readParenExpr <|>
   readNumber <|>
-  readSpecialIdent <|>
   readBoolConv <|>
-  readBuiltinCall <|>
-  readBuiltinCallCouple <|>
   readQuantExpr <|>
   readSetExpr <|>
   readListExpr
@@ -642,72 +639,6 @@ readBoolConv = do
   updateState $ \s -> s { acceptCommaPair = prevComma }
   return $ BBoolConversion p
   
-readSpecialIdent =
-  specialKeyword "TRUE" <|>
-  specialKeyword "FALSE" <|>
-  specialKeyword "MAXINT" <|>
-  specialKeyword "MININT" <|>
-  specialKeyword "INTEGER" <|>
-  specialKeyword "NATURAL" <|>
-  specialKeyword "NATURAL1" <|>
-  specialKeyword "NAT" <|>
-  specialKeyword "NAT1" <|>
-  specialKeyword "INT" <|>
-  specialKeyword "BOOL"
-  where
-    specialKeyword keyword =
-      m_reserved keyword *> return (BIdentifier (BIdent keyword) BCurrent) -- TODO add into BTree ?
-
-readBuiltinCall = do
-  kind <- ope
-  e <- m_parens readExpr
-  return $ BUnaryExpression kind e
-  where
-    ope =
-      m_reserved "max" *> return BMaximum <|>
-      m_reserved "min" *> return BMinimum <|>
-      m_reserved "card" *> return BCardinality <|>
-      m_reserved "POW" *> return BPowerSet <|>
-      m_reserved "POW1" *> return BNonEmptyPowerSet <|>
-      m_reserved "FIN" *> return BFinitePowerSet <|>
-      m_reserved "FIN1" *> return BNonEmptyFinitePowerSet <|>
-      m_reserved "union" *> return BGeneralizedUnion <|>
-      m_reserved "inter" *> return BGeneralizedIntersection <|>
-      m_reserved "id" *> return BIdentity <|>
-      m_reserved "closure" *> return BClosure <|>
-      m_reserved "closure1" *> return BNonReflexiveClosure <|>
-      m_reserved "dom" *> return BDomain <|>
-      m_reserved "ran" *> return BRange <|>
-      m_reserved "fnc" *> return BFunctionTransformation <|>
-      m_reserved "rel" *> return BRelationTransformation <|>
-      m_reserved "seq" *> return BSequence <|>
-      m_reserved "seq1" *> return BNonEmptySequence <|>
-      m_reserved "iseq" *> return BInjectiveSequence <|>
-      m_reserved "iseq1" *> return BNonEmptyInjectiveSequence <|>
-      m_reserved "perm" *> return BPermutation <|>
-      m_reserved "size" *> return BSize <|>
-      m_reserved "first" *> return BFirst <|>
-      m_reserved "last" *> return BLast <|>
-      m_reserved "front" *> return BFront <|>
-      m_reserved "tail" *> return BTail <|>
-      m_reserved "rev" *> return BRev <|>
-      m_reserved "conc" *> return BGeneralizedConcatenation
-      
-readBuiltinCallCouple = do
-  kind <- m_reserved "prj1" *> return BLeftProjection <|>
-          m_reserved "prj2" *> return BRightProjection <|>
-          m_reserved "iterate" *> return BIteration
-  s <- getState
-  let previous = acceptCommaPair s
-  updateState $ \s -> s { acceptCommaPair = False }
-  m_reservedOp "("
-  e <- readExpr
-  m_reservedOp ","
-  f <- readExpr
-  m_reservedOp ")"
-  updateState $ \s -> s { acceptCommaPair = previous }
-  return $ BBuiltinCall kind e f
-
 readQuantExpr = do
   kind <- m_reserved "SIGMA" *> return BSum <|>
           m_reserved "PI" *> return BProduct <|>
@@ -869,57 +800,12 @@ opComp =
   ]
 
 kwExpr =
-  [ "STRING"
-  , "BOOL"
-  , "TRUE"
-  , "FALSE"
-  , "INTEGER"
-  , "INT"
-  , "NATURAL"
-  , "NAT"
-  , "NATURAL1"
-  , "NAT1"
-  , "MAXINT"
-  , "MININT"
-  , "bool"
+  [ "bool"
   , "mod"
-  , "max"
-  , "min"
-  , "card"
   , "SIGMA"
   , "PI"
-  , "POW"
-  , "POW1"
-  , "FIN"
-  , "FIN1"
-  , "union"
-  , "inter"
   , "UNION"
   , "INTER"
-  , "id"
-  , "prj1"
-  , "prj2"
-  , "iterate"
-  , "closure"
-  , "closure1"
-  , "dom"
-  , "ran"
-  , "fnc"
-  , "rel"
-  , "seq"
-  , "seq1"
-  , "iseq"
-  , "iseq1"
-  , "perm"
-  , "size"
-  , "first"
-  , "last"
-  , "front"
-  , "tail"
-  , "rev"
-  , "conc"
-  , "succ"
-  , "pred"
   , "struct"
   , "rec"
   ]

@@ -99,7 +99,6 @@ data BExpression
   | BNumber Integer
   | BUnaryExpression BOperatorUnaExpr BExpression
   | BBinaryExpression BOperatorBinExpr BExpression BExpression
-  | BBuiltinCall BOperatorBuiltinCall BExpression BExpression
   | BApply BOperatorApply BExpression BExpression
   | BQuantifiedExpression BOperatorQuantExpr [BIdent] BPredicate BExpression
   | BSetComprehension [BIdent] BPredicate
@@ -141,41 +140,13 @@ data BOperatorBinPredTerm
   
 data BOperatorUnaExpr
   = BOpposite
-  | BMaximum
-  | BMinimum
-  | BCardinality
-  | BPowerSet
-  | BNonEmptyPowerSet
-  | BFinitePowerSet
-  | BNonEmptyFinitePowerSet
-  | BGeneralizedUnion
-  | BGeneralizedIntersection
-  | BIdentity
   | BInverse
-  | BClosure  -- TODO check number of parameters
-  | BNonReflexiveClosure  -- TODO check number of parameters
-  | BDomain
-  | BRange
-  | BFunctionTransformation
-  | BRelationTransformation
-  | BSequence
-  | BNonEmptySequence
-  | BInjectiveSequence
-  | BNonEmptyInjectiveSequence
-  | BPermutation
-  | BSize
-  | BFirst
-  | BLast
-  | BFront
-  | BTail
-  | BRev
-  | BGeneralizedConcatenation
   deriving(Show, Read, Eq)
   
 data BOperatorBinExpr
   = BAddition
-  | BSubstration -- TODO should also be BSetSubstration
-  | BAsterisk -- TODO should be BMultiplication and BCartesianProduct
+  | BSubstration
+  | BAsterisk
   | BDivision
   | BModulo
   | BPower
@@ -215,12 +186,6 @@ data BOperatorQuantExpr
   | BLambdaExpression
   deriving(Show, Read, Eq)
   
-data BOperatorBuiltinCall
-  = BLeftProjection
-  | BRightProjection
-  | BIteration
-  deriving(Show, Read, Eq)
-
 data BOperatorApply
   = BImage
   | BApplication

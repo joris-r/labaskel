@@ -191,10 +191,6 @@ k m l n@(BBinaryExpression op le re)
   = (mutExpression m) l (BBinaryExpression op le' re')
   where le' = k m ((BNExpression n):l) le
         re' = k m ((BNExpression n):l) re
-k m l n@(BBuiltinCall op le re)
-  = (mutExpression m) l (BBuiltinCall op le' re')
-  where le' = k m ((BNExpression n):l) le
-        re' = k m ((BNExpression n):l) re
 k m l n@(BApply op le re)
   = (mutExpression m) l (BApply op le' re')
   where le' = k m ((BNExpression n):l) le

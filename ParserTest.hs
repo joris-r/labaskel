@@ -246,8 +246,6 @@ sizedBExpr n = frequency
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
                (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
-  , (2, liftM3 BBuiltinCall arbitrary
-               (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
   , (2, liftM3 BApply arbitrary
                (sizedBExpr $ (n-1) `div` 2) (sizedBExpr $ (n-1) `div` 2))
   , (1, liftM4 BQuantifiedExpression 
@@ -314,35 +312,7 @@ instance Arbitrary BOperatorBinPredTerm where
 instance Arbitrary BOperatorUnaExpr where
   arbitrary = elements
     [ BOpposite
-    , BMaximum
-    , BMinimum
-    , BCardinality
-    , BPowerSet
-    , BNonEmptyPowerSet
-    , BFinitePowerSet
-    , BNonEmptyFinitePowerSet
-    , BGeneralizedUnion
-    , BGeneralizedIntersection
-    , BIdentity
     , BInverse
-    , BClosure
-    , BNonReflexiveClosure
-    , BDomain
-    , BRange
-    , BFunctionTransformation
-    , BRelationTransformation
-    , BSequence
-    , BNonEmptySequence
-    , BInjectiveSequence
-    , BNonEmptyInjectiveSequence
-    , BPermutation
-    , BSize
-    , BFirst
-    , BLast
-    , BFront
-    , BTail
-    , BRev
-    , BGeneralizedConcatenation
     ]
 
 instance Arbitrary BOperatorBinExpr where
@@ -390,12 +360,6 @@ instance Arbitrary BOperatorQuantExpr where
     , BLambdaExpression
     ]
     
-instance Arbitrary BOperatorBuiltinCall where
-  arbitrary = elements
-    [ BLeftProjection
-    , BRightProjection
-    , BIteration
-    ]
 
 instance Arbitrary BOperatorApply where
   arbitrary = elements
