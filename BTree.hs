@@ -45,10 +45,10 @@ data BClause
   | BImports [BIdent]
   | BSees [BIdent]
   | BSetClause [BSetDeclaration]
-  | BProperties BPredicate
-  | BInvariant BPredicate
-  | BAssertions [BPredicate]
-  | BValues [BPredicate] -- TODO replace predicate by a list of (var,expr)
+  | BProperties BExpression
+  | BInvariant BExpression
+  | BAssertions [BExpression]
+  | BValues [BExpression] -- TODO replace predicate by a list of (var,expr)
   | BInitialisation BSubstitution
   | BOperations [BOperation]
   | BLocalOperations [BOperation]
@@ -67,64 +67,75 @@ data BSubstitution
   = BSubstitutionBlock BSubstitution
   | BSubstitutionSkip
   | BSubstitutionSimple [BIdent] [BExpression]
-  | BSubstitutionPreCondition BPredicate BSubstitution
-  | BSubstitutionAssert BPredicate BSubstitution
+  
+  -- TODO factorize
+  | BSubstitutionPreCondition BExpression BSubstitution
+  | BSubstitutionAssert       BExpression BSubstitution
+  
   | BSubstitutionChoice [BSubstitution]
-  | BSubstitutionCond BOperatorCond [(BPredicate,BSubstitution)] (Maybe BSubstitution) -- at least one couple in the list
+  | BSubstitutionCond BOperatorCond [(BExpression,BSubstitution)] (Maybe BSubstitution) -- at least one couple in the list
   | BSubstitutionCase BExpression [(BExpression,BSubstitution)] (Maybe BSubstitution) -- at least one couple in the list
-  | BSubstitutionSpecVar BOperatorSpecVar [BIdent] BPredicate BSubstitution
+  | BSubstitutionSpecVar BOperatorSpecVar [BIdent] BExpression BSubstitution
+  
+  -- TODO factorize
   | BSubstitutionBecomeIn [BIdent] BExpression
-  | BSubstitutionSuchThat [BIdent] BPredicate
+  | BSubstitutionSuchThat [BIdent] BExpression
+  
   | BSubstitutionVar [BIdent] BSubstitution
   | BSubstitutionCompo BOperatorSubComp BSubstitution BSubstitution
   | BSubstitutionOpeCall [BIdent] BIdent [BExpression]
-  | BSubstitutionWhile BPredicate BSubstitution BPredicate BExpression
+  | BSubstitutionWhile BExpression BSubstitution BExpression BExpression
   deriving(Show, Read, Eq)
   
 data BOperatorCond = BIf | BSelect deriving(Show, Read, Eq)
 data BOperatorSpecVar = BAny | BLet deriving(Show, Read, Eq)
 data BOperatorSubComp = BOpSubParal | BOpSubSeq deriving(Show, Read, Eq)
 
-data BPredicate
-  = BUnaryPredicate BOperatorUnaPred BPredicate -- TODO replace by just a negation
-  | BBinaryPredicate BOperatorBinPred BPredicate BPredicate
-  | BQuantifiedPredicate BOperatorQuantPred [BIdent] BPredicate
-  | BComparisonPredicate BOperatorBinPredTerm BExpression BExpression
-  | BParenPredicate BPredicate
-  deriving(Show, Read, Eq)
-  
 data BExpression
-  = BIdentifier BIdent BSuffix -- TODO restrict suffix "$0" to become such as subst
-  | BBoolConversion BPredicate
-  | BNumber Integer
+  = BNegation                         BExpression
   | BUnaryExpression BOperatorUnaExpr BExpression
-  | BBinaryExpression BOperatorBinExpr BExpression BExpression
+  
+  | BBinaryPredicate     BOperatorBinExpr BExpression BExpression
+  | BBinaryExpression    BOperatorBinExpr BExpression BExpression
+  | BComparisonPredicate BOperatorBinExpr BExpression BExpression
+  
   | BApply BOperatorApply BExpression BExpression
-  | BQuantifiedExpression BOperatorQuantExpr [BIdent] BPredicate BExpression
-  | BSetComprehension [BIdent] BPredicate
-  | BSetExtension [BExpression] --TODO factorize BSetExtension and BSequenceExtension ?
+  | BBoolConversion                   BExpression
+  
+  | BQuantifiedPredicate BOperatorQuantPred [BIdent] BExpression
+  | BSetComprehension                       [BIdent] BExpression
+  
+  | BQuantifiedExpression BOperatorQuantExpr [BIdent] BExpression BExpression
+
+  | BIdentifier BIdent BSuffix
+  | BNumber Integer
+  
+  | BSetExtension      [BExpression]
   | BSequenceExtension [BExpression]
+  
   | BParenExpression BExpression
+  
   deriving(Show, Read, Eq)
 
 data BSuffix = BCurrent | BPrevious deriving(Show, Read, Eq)
-  
-data BOperatorUnaPred = BNegation deriving(Show, Read, Eq)
-  
-data BOperatorBinPred
-  = BConjunction
-  | BDisjunction
-  | BImplication
-  | BEquivalence
-  deriving(Show, Read, Eq)  
   
 data BOperatorQuantPred
   = BUniversal
   | BExistential
   deriving(Show, Read, Eq)
   
-data BOperatorBinPredTerm
-  = BEquality
+data BOperatorUnaExpr
+  = BOpposite
+  | BInverse
+  deriving(Show, Read, Eq)
+  
+data BOperatorBinExpr
+  = BConjunction
+  | BDisjunction
+  | BImplication
+  | BEquivalence
+  
+  | BEquality
   | BNonEquality
   | BMembership
   | BNonMembership
@@ -136,15 +147,8 @@ data BOperatorBinPredTerm
   | BStrictInequality
   | BReverseInequality
   | BStrictReverseInequality
-  deriving(Show, Read, Eq)
   
-data BOperatorUnaExpr
-  = BOpposite
-  | BInverse
-  deriving(Show, Read, Eq)
-  
-data BOperatorBinExpr
-  = BAddition
+  | BAddition
   | BSubstration
   | BAsterisk
   | BDivision

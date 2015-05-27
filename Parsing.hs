@@ -451,7 +451,7 @@ readQuantPred = do
 predTable =
   [
   -- ??
-     [Prefix (m_reserved "not" >> (return $ BUnaryPredicate BNegation))] -- according to the spec should enforce the parenthesis after but it's nod done in this parser (and not really necessary)
+     [Prefix (m_reserved "not" >> (return $ BNegation))]
   -- 60
   ,  [Infix (m_reservedOp "<=>" >> (return $ BBinaryPredicate BEquivalence) ) AssocLeft]
   -- 40
@@ -468,7 +468,7 @@ readPredTerm =
   
 readParenPred = do
   p <- m_parens readPredicate
-  return $ BParenPredicate p
+  return $ BParenExpression p
   
 readComp = do
   left <- readExpr

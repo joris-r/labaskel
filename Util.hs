@@ -27,7 +27,6 @@ addMinParenComp = rewriteBComponent addMinParen
 
 addMinParen = defaultMut
   { mutSubstitution = addMinParenSub
-  , mutPredicate = addMinParenPred
   , mutExpression = addMinParenExpr
   }
 
@@ -52,73 +51,6 @@ parenFirstPair n = n
 
 
 data Assoc = AssocLeft | AssocRight deriving(Show, Eq)
-
-opPrioPred =
-  -- from top priority to low priority
-  [ [ (BEquivalence,AssocLeft) ]
-  , [ (BConjunction,AssocLeft), (BDisjunction,AssocLeft) ]
-  , [ (BImplication,AssocLeft) ]
-  ]
-
-rankPrioPred :: BOperatorBinPred -> Int
-rankPrioPred op =
-  fromJust (findIndex (isInSubList op) opPrioPred)
-  where
-    isInSubList op ((opX,_):l) | op == opX = True
-    isInSubList op (_:l) | True  = isInSubList op l
-    isInSubList op [] = False
-
-assocPred :: BOperatorBinPred -> Assoc
-assocPred op = snd $ fromJust $ find f (concat opPrioPred)
-  where
-    f = (==) op . fst
-    
-strictLessPrioPred :: BOperatorBinPred -> BOperatorBinPred -> Bool
-strictLessPrioPred l r = (rankPrioPred l) > (rankPrioPred r)
-
-samePrioPred :: BOperatorBinPred -> BOperatorBinPred -> Bool
-samePrioPred l r = (rankPrioPred l) == (rankPrioPred r)
-
-
-addMinParenPred :: [BNode] -> BPredicate -> BPredicate
-
-addMinParenPred ((BNPredicate (BBinaryPredicate opAbove lAbove rAbove)):_)
-                            n@(BBinaryPredicate op _ _)
-  | op `strictLessPrioPred` opAbove
-    = BParenPredicate n
-  | (op `samePrioPred` opAbove) && (assocPred opAbove /= sideFromAbove)
-    = BParenPredicate n
-  | otherwise
-    = n
-  where
-    sideFromAbove
-      | lAbove `equalModParenPred` n = AssocLeft
-      | rAbove `equalModParenPred` n = AssocRight
-      | otherwise = error "Impossible case on the side of a binary predicate"
-
--- always add parenthesis on the argument of "not"
--- because it's specified like this on B method
--- (this parser accept without)
-addMinParenPred [] n@(BBinaryPredicate _ _ _) =
-  BParenPredicate n
-addMinParenPred ((BNPredicate (BUnaryPredicate _ _)):_)
-                            n@(BBinaryPredicate _ _ _) = 
-  BParenPredicate n
-addMinParenPred ((BNPredicate (BUnaryPredicate _ _)):_)
-                            n@(BUnaryPredicate _ _) = 
-  BParenPredicate n
-addMinParenPred ((BNPredicate (BUnaryPredicate _ _)):_)
-                            n@(BQuantifiedPredicate _ _ _) = 
-  BParenPredicate n
-addMinParenPred ((BNPredicate (BUnaryPredicate _ _)):_)
-                            n@(BComparisonPredicate _ _ _) = 
-  BParenPredicate n
--- TODO is it possible to factorize those 4 declaration by
---      using a "n does not match a (BParenPredicate _)" ?
-
-addMinParenPred _ p = p
-
-
 
 -- TODO do a unit test with the following data
 
@@ -195,15 +127,13 @@ pred03' =
 pred04 =
   BBinaryPredicate
     BImplication(
-      BUnaryPredicate
       BNegation(
         predTermNumX 0))(
       predTermNumX 1)
     
 -- not(0=0 => 1=1)
 pred04' =
-  BUnaryPredicate
-    BNegation(
+  BNegation(
     BBinaryPredicate
       BImplication(
       predTermNumX 0)(
@@ -256,6 +186,9 @@ opPrioExpr =
     ]
   , [ (BCommaPair,AssocLeft)
     ]
+  , [ (BEquivalence,AssocLeft) ]
+  , [ (BConjunction,AssocLeft), (BDisjunction,AssocLeft) ]
+  , [ (BImplication,AssocLeft) ]
   , [ (BComposition,AssocLeft)
     , (BParallelProduct,AssocLeft)
     ]
@@ -299,6 +232,29 @@ addMinParenExpr ((BNExpression (BBinaryExpression opAbove lAbove rAbove)):_)
       | lAbove `equalModParenExpr` n = AssocLeft
       | rAbove `equalModParenExpr` n = AssocRight
       | otherwise = error "Impossible case on the side of a binary expression"
+
+-- always add parenthesis on the argument of "not"
+-- because it's specified like this on B method
+-- (this parser accept without)
+addMinParenExpr [] n@(BBinaryPredicate _ _ _) =
+  BParenExpression n
+addMinParenExpr ((BNExpression (BNegation _)):_)
+                            n@(BBinaryPredicate _ _ _) = 
+  BParenExpression n
+addMinParenExpr ((BNExpression (BNegation _)):_)
+                            n@(BNegation _) = 
+  BParenExpression n
+addMinParenExpr ((BNExpression (BNegation _)):_)
+                            n@(BQuantifiedPredicate _ _ _) = 
+  BParenExpression n
+addMinParenExpr ((BNExpression (BNegation _)):_)
+                            n@(BComparisonPredicate _ _ _) = 
+  BParenExpression n
+-- TODO is it possible to factorize those 4 declaration by
+--      using a "n does not match a (BParenExpression _)" ?
+
+
+
 
 addMinParenExpr _ n@(BBinaryExpression BComposition _ _)
   = BParenExpression n
@@ -348,9 +304,6 @@ addMinParenExpr _ n
   = n
 
 
-equalModParenPred l r =
-  (removeParenPred l) == (removeParenPred r)
-  
 equalModParenExpr l r =
   (removeParenExpr l) == (removeParenExpr r)
 

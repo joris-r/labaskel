@@ -65,16 +65,16 @@ prettyBClause (BSetClause decl) =
   text "SETS" <+> cat (punctuate semi (map prettyBSetDeclaration decl))
   
 prettyBClause (BProperties p) =
-  text "PROPERTIES" <+> prettyBPredicate p
+  text "PROPERTIES" <+> prettyBExpression p
   
 prettyBClause (BInvariant p) =
-  text "INVARIANT" <+> prettyBPredicate p
+  text "INVARIANT" <+> prettyBExpression p
   
 prettyBClause (BValues ps) =
-  text "VALUES" <+> cat (punctuate semi (map prettyBPredicate ps))
+  text "VALUES" <+> cat (punctuate semi (map prettyBExpression ps))
   
 prettyBClause (BAssertions ps) =
-  text "ASSERTIONS" <+> cat (punctuate semi (map prettyBPredicate ps))
+  text "ASSERTIONS" <+> cat (punctuate semi (map prettyBExpression ps))
   
 prettyBClause (BInitialisation s) =
   text "INITIALISATION" $$
@@ -149,19 +149,19 @@ prettyBSubstitution (BSubstitutionBecomeIn vars e) =
 prettyBSubstitution (BSubstitutionSuchThat vars p) =
   prettyVariablesList vars <+>
   text ":(" $$
-  indent (prettyBPredicate p) $$
+  indent (prettyBExpression p) $$
   text ")"
     
 prettyBSubstitution (BSubstitutionPreCondition p s) =
   text "PRE" $$
-  indent (prettyBPredicate p) $$
+  indent (prettyBExpression p) $$
   text "THEN" $$
   indent (prettyBSubstitution s) $$
   text "END"
   
 prettyBSubstitution (BSubstitutionAssert p s) =
   text "ASSERT" $$
-  indent (prettyBPredicate p) $$
+  indent (prettyBExpression p) $$
   text "THEN" $$
   indent (prettyBSubstitution s) $$
   text "END"
@@ -172,7 +172,7 @@ prettyBSubstitution (BSubstitutionChoice subs) =
   text "END"
 
 prettyBSubstitution (BSubstitutionCond op ((testP,thenS):xs) elseS) =
-  keyword_initial <+> prettyBPredicate testP $$
+  keyword_initial <+> prettyBExpression testP $$
   text "THEN" <+> prettyBSubstitution thenS $$
   elsif xs $$
   case elseS of
@@ -180,9 +180,9 @@ prettyBSubstitution (BSubstitutionCond op ((testP,thenS):xs) elseS) =
     (Just s) -> text "ELSE" <+> prettyBSubstitution s
   $$ text "END"
   where
-    elsif :: [(BPredicate,BSubstitution)] -> Doc
+    elsif :: [(BExpression,BSubstitution)] -> Doc
     elsif ((t,s):xs) =
-      keyword_other  <+> prettyBPredicate t $$
+      keyword_other  <+> prettyBExpression t $$
       text "THEN" <+> prettyBSubstitution s $$
       elsif xs
     elsif [] = empty
@@ -218,7 +218,7 @@ prettyBSubstitution (BSubstitutionSpecVar op vars p s) =
   (case op of
         BAny -> text "WHERE"
         BLet -> text "BE" ) $$
-  indent (prettyBPredicate p) $$
+  indent (prettyBExpression p) $$
   (case op of
         BAny -> text "THEN"
         BLet -> text "IN" ) $$
@@ -254,43 +254,37 @@ prettyBSubstitution (BSubstitutionOpeCall vars name exprs) =
   parens (hsep . (punctuate (text ",")) . (map prettyBExpression) $ exprs)
   
 prettyBSubstitution (BSubstitutionWhile condition body invariant variant) =
-  text "WHILE" <+> prettyBPredicate condition $$
+  text "WHILE" <+> prettyBExpression condition $$
   text "DO" $$
   indent (prettyBSubstitution body) $$
   text "INVARIANT" $$
-  indent (prettyBPredicate invariant) $$
+  indent (prettyBExpression invariant) $$
   text "VARIANT" <+> prettyBExpression variant $$
   text "END"
 
 
-prettyBPredicate :: BPredicate -> Doc
+prettyBExpression :: BExpression -> Doc
 
-prettyBPredicate (BUnaryPredicate BNegation p) =
+prettyBExpression (BNegation p) =
   text "not" <+>
-  prettyBPredicate p
+  prettyBExpression p
 
-prettyBPredicate (BBinaryPredicate op p q) =
-  prettyBPredicate p <+> prettyBOperatorBinPred op <+> prettyBPredicate q
+prettyBExpression (BBinaryPredicate op p q) =
+  prettyBExpression p <+> prettyBOperatorBinExpr op <+> prettyBExpression q
   
-prettyBPredicate (BQuantifiedPredicate op vars p) =
+prettyBExpression (BQuantifiedPredicate op vars p) =
   prettyBOperatorQuantPred op <+>
   prettyVariablesListProtected  vars<+> text "." <+>
-  parens (prettyBPredicate p)
+  parens (prettyBExpression p)
   
-prettyBPredicate (BComparisonPredicate op e f) =
-  prettyBExpression e <+> prettyBOperatorBinPredTerm op <+> prettyBExpression f
-  
-prettyBPredicate (BParenPredicate p) =
-  parens (prettyBPredicate p)
-
-
-prettyBExpression :: BExpression -> Doc
+prettyBExpression (BComparisonPredicate op e f) =
+  prettyBExpression e <+> prettyBOperatorBinExpr op <+> prettyBExpression f
 
 prettyBExpression (BIdentifier s BCurrent) = text (unBIdent s)
 prettyBExpression (BIdentifier s BPrevious) = text (unBIdent s) <> text "$0"
 
 prettyBExpression (BBoolConversion p) =
-  text "bool" <+> parens (prettyBPredicate p)
+  text "bool" <+> parens (prettyBExpression p)
   
 prettyBExpression (BNumber n) = integer n
 
@@ -313,7 +307,7 @@ prettyBExpression (BQuantifiedExpression op vars p e) =
   prettyBOperatorQuantExpr op <+>
   prettyVariablesListProtected vars <+> text "." <+>
   text "(" <+>
-  prettyBPredicate p <+>
+  prettyBExpression p <+>
   text "|" <+>
   prettyBExpression e <+>
   text ")"
@@ -321,7 +315,7 @@ prettyBExpression (BQuantifiedExpression op vars p e) =
 prettyBExpression (BSetComprehension vars p) = 
   text "{" <+>
   prettyVariablesList vars <+> text "|" <+>
-  prettyBPredicate p  <+>
+  prettyBExpression p  <+>
   text "}"
   
 prettyBExpression (BSetExtension exprs) = 
@@ -338,31 +332,28 @@ prettyBExpression (BParenExpression e) =
   parens (prettyBExpression e)
   
   
-prettyBOperatorBinPred :: BOperatorBinPred -> Doc
-prettyBOperatorBinPred BConjunction = text "&"
-prettyBOperatorBinPred BDisjunction = text "or"
-prettyBOperatorBinPred BImplication = text "=>"
-prettyBOperatorBinPred BEquivalence = text "<=>"
-
-prettyBOperatorBinPredTerm :: BOperatorBinPredTerm -> Doc
-prettyBOperatorBinPredTerm BEquality = text "="
-prettyBOperatorBinPredTerm BNonEquality = text "/="
-prettyBOperatorBinPredTerm BMembership = text ":"
-prettyBOperatorBinPredTerm BNonMembership = text "/:"
-prettyBOperatorBinPredTerm BInclusion = text "<:"
-prettyBOperatorBinPredTerm BStrictInclusion = text "<<:"
-prettyBOperatorBinPredTerm BNonInclusion = text "/<:"
-prettyBOperatorBinPredTerm BNonStrictInclusion = text "/<<:"
-prettyBOperatorBinPredTerm BInequality = text "<="
-prettyBOperatorBinPredTerm BStrictInequality = text "<"
-prettyBOperatorBinPredTerm BReverseInequality = text ">="
-prettyBOperatorBinPredTerm BStrictReverseInequality = text ">"
-
 prettyBOperatorQuantPred :: BOperatorQuantPred -> Doc
 prettyBOperatorQuantPred BUniversal = text "!"
 prettyBOperatorQuantPred BExistential = text "#"
 
-prettyBOperatorBinExpr :: BOperatorBinExpr -> Doc
+prettyBOperatorBinExpr BConjunction = text "&"
+prettyBOperatorBinExpr BDisjunction = text "or"
+prettyBOperatorBinExpr BImplication = text "=>"
+prettyBOperatorBinExpr BEquivalence = text "<=>"
+
+prettyBOperatorBinExpr BEquality = text "="
+prettyBOperatorBinExpr BNonEquality = text "/="
+prettyBOperatorBinExpr BMembership = text ":"
+prettyBOperatorBinExpr BNonMembership = text "/:"
+prettyBOperatorBinExpr BInclusion = text "<:"
+prettyBOperatorBinExpr BStrictInclusion = text "<<:"
+prettyBOperatorBinExpr BNonInclusion = text "/<:"
+prettyBOperatorBinExpr BNonStrictInclusion = text "/<<:"
+prettyBOperatorBinExpr BInequality = text "<="
+prettyBOperatorBinExpr BStrictInequality = text "<"
+prettyBOperatorBinExpr BReverseInequality = text ">="
+prettyBOperatorBinExpr BStrictReverseInequality = text ">"
+
 -- not here becase it's a special case:
 --   BLeftProjection
 --   BRightProjection

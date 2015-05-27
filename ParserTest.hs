@@ -204,32 +204,6 @@ rotateLeftSubComp (BSubstitutionCompo op a b) =
 rotateLeftSubComp x = x
 
 
-instance Arbitrary BPredicate where
-  arbitrary = sized sizedBPred
-
-sizedBPred :: Int -> Gen BPredicate
-sizedBPred 0 = oneof
-  [ liftM3 BComparisonPredicate
-           arbitrary
-           (sizedBExpr $ 0)
-           (sizedBExpr $ 0)
-  ]
-sizedBPred n = frequency
-  [ (1, liftM3 BComparisonPredicate
-               arbitrary
-               (sizedBExpr $ (n-1) `div` 2)
-               (sizedBExpr $ (n-1) `div` 2))
-  , (2, liftM2 BUnaryPredicate arbitrary (sizedBPred $ n-1))
-  , (2, liftM3 BBinaryPredicate
-               arbitrary
-               (sizedBPred $ (n-1) `div` 2)
-               (sizedBPred $ (n-1) `div` 2))
-  , (2, liftM3 BQuantifiedPredicate
-               arbitrary
-               (listOf1 arbitrary)
-               (sizedBPred $ n-1))
-  ]
-
 instance Arbitrary BExpression where
   arbitrary = sized sizedBExpr
 
@@ -237,11 +211,28 @@ sizedBExpr :: Int -> Gen BExpression
 sizedBExpr 0 = oneof
   [ liftM2 BIdentifier arbitrary arbitrary
   , liftM BNumber (elements [0,1,3,25,100])
+  , liftM3 BComparisonPredicate
+           arbitrary
+           (sizedBExpr $ 0)
+           (sizedBExpr $ 0)
   ]
 sizedBExpr n = frequency
-  [ (1, liftM2 BIdentifier arbitrary arbitrary)
+  [ (1, liftM3 BComparisonPredicate
+               arbitrary
+               (sizedBExpr $ (n-1) `div` 2)
+               (sizedBExpr $ (n-1) `div` 2))
+  , (2, liftM BNegation (sizedBExpr $ n-1))
+  , (2, liftM3 BBinaryPredicate
+               arbitrary
+               (sizedBExpr $ (n-1) `div` 2)
+               (sizedBExpr $ (n-1) `div` 2))
+  , (2, liftM3 BQuantifiedPredicate
+               arbitrary
+               (listOf1 arbitrary)
+               (sizedBExpr $ n-1))
+  , (1, liftM2 BIdentifier arbitrary arbitrary)
   , (1, liftM BNumber (elements [0,1,3,25,100]))
-  , (1, liftM BBoolConversion (sizedBPred $ n-1))  -- looping back!
+  , (1, liftM BBoolConversion (sizedBExpr $ n-1))  -- looping back!
   , (2, liftM2 BUnaryExpression arbitrary
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
@@ -251,11 +242,11 @@ sizedBExpr n = frequency
   , (1, liftM4 BQuantifiedExpression 
                arbitrary
                (listOf1 arbitrary)
-               (sizedBPred $ n-1)  -- looping back!
+               (sizedBExpr $ n-1)  -- looping back!
                (sizedBExpr $ n-1))
   , (1, liftM2 BSetComprehension
                (listOf1 arbitrary)
-               (sizedBPred $ n-1))  -- looping back!
+               (sizedBExpr $ n-1))  -- looping back!
   , (2, liftM BSetExtension (vectorOf 1 (sizedBExpr $ (n-1))))
   , (2, liftM BSetExtension (vectorOf 2 (sizedBExpr $ (n-1) `div` 2)))
   , (2, liftM BSetExtension (vectorOf 3 (sizedBExpr $ (n-1) `div` 3)))
@@ -276,26 +267,26 @@ instance Arbitrary BOperatorSpecVar where
     , BLet
     ]
     
-instance Arbitrary BOperatorUnaPred where
-  arbitrary = elements [ BNegation ]
-    
-instance Arbitrary BOperatorBinPred where
-  arbitrary = elements
-    [ BConjunction
-    , BDisjunction
-    , BImplication
-    , BEquivalence
-    ]
-    
 instance Arbitrary BOperatorQuantPred where
   arbitrary = elements
     [ BUniversal
     , BExistential
     ]
     
-instance Arbitrary BOperatorBinPredTerm where
+instance Arbitrary BOperatorUnaExpr where
   arbitrary = elements
-    [ BEquality
+    [ BOpposite
+    , BInverse
+    ]
+
+instance Arbitrary BOperatorBinExpr where
+  arbitrary = elements
+    [ BConjunction
+    , BDisjunction
+    , BImplication
+    , BEquivalence
+    
+    , BEquality
     , BInequality
     , BMembership
     , BNonMembership
@@ -307,17 +298,8 @@ instance Arbitrary BOperatorBinPredTerm where
     , BStrictInequality
     , BReverseInequality
     , BStrictReverseInequality
-    ]
-
-instance Arbitrary BOperatorUnaExpr where
-  arbitrary = elements
-    [ BOpposite
-    , BInverse
-    ]
-
-instance Arbitrary BOperatorBinExpr where
-  arbitrary = elements
-    [ BAddition
+    
+    , BAddition
     , BSubstration
     , BAsterisk
     , BDivision

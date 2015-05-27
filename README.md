@@ -27,10 +27,18 @@ Nothing more right now.
 
 - better pretty-printing (only necessary parenthesis) for better testing
 - fix the buggy tokenizer
+- check if the renaming in identifier can be chained "a.b.c"
+- parse chained fonction application "f(1)(2)"
+- rename Util module
+- still several factorization in BExpression
 
+# What should
+- check mandatory parenthesis for predicate negation
+- add a command line executable to pretty-print source file
+- the "not" is parsed as an unary operator ?
 
 # What could be done
-
+- try uniplate to add parenthesis
 - add an XML output and test the program versus the XML output of BComp on some projects
 - remove things from the BTree that could be defined regulary (like a std lib)
 - use this shrinking stuff of quickcheck
