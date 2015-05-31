@@ -453,10 +453,16 @@ readQuantPred = do
   p <- m_parens readPredicate
   return $ BQuantifiedPredicate kind vars p
 
+-- allow repeating of unary operator
+-- copied from http://stackoverflow.com/questions/10475337
+-- "Parsec.Expr repeated Prefix/Postfix operator not supported"
+prefix  p = Prefix  . chainl1 p $ return       (.)
+postfix p = Postfix . chainl1 p $ return (flip (.))
+
 predTable =
   [
   -- ??
-     [Prefix (m_reserved "not" >> (return $ BNegation))]
+     [prefix (m_reserved "not" >> (return $ BNegation))]
   -- 60
   ,  [Infix (m_reservedOp "<=>" >> (return $ BBinaryPredicate BEquivalence) ) AssocLeft]
   -- 40
@@ -538,8 +544,8 @@ readExpr = buildExpressionParser exprTable termAndCall <?> "expression"
 exprTable =
   [
   -- ???:
-    [Prefix (m_reservedOp "-" *> return (BUnaryExpression BOpposite))
-    ,Postfix (m_reservedOp "~" *> return (BUnaryExpression BInverse))]
+    [prefix (m_reservedOp "-" *> return (BUnaryExpression BOpposite))
+    ,postfix (m_reservedOp "~" *> return (BUnaryExpression BInverse))]
   -- 200:
   , [Infix (m_reservedOp "**" *> return (BBinaryExpression BPower)) AssocRight]
   -- 190:
