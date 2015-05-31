@@ -20,7 +20,7 @@ import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Token
 import Text.Parsec.Expr
-import Data.List(nub)
+import Data.List(nub, isPrefixOf)
 
 import BTree
 
@@ -34,12 +34,13 @@ def = LanguageDef
         , identLetter = alphaNum <|> char '_' <|> char '.'
                                       --TODO restrict use of . in indentLetter
         , caseSensitive = True
+        
         , opStart = oneOf $ nub $ map head allOp
-        -- the opLetter should be something like "oneOf $ nub $ concat $ map tail $ allOp"
-        -- but that its not strict enough.
-        -- therefore I do not use this mecanism from Parsec
-        , opLetter = undefined
+        
+        , opLetter = oneOf $ nub $ concat $ map tail $ allOp
+        
         , reservedOpNames = allOp
+        
         , reservedNames = allKw
         }
         
@@ -47,11 +48,14 @@ TokenParser
   { parens = m_parens
   , identifier = m_identifier
   , reserved = m_reserved
+  --, reservedOp = m_reservedOp
   , integer = m_integer
   , whiteSpace = m_whiteSpace
   , lexeme = m_lexeme
   } = makeTokenParser def
   
+  
+
   
 -- I do not use the vanilla Parsec reservedOp because there
 -- are too many operators that are prefix of other operators.
@@ -67,11 +71,12 @@ m_reservedOp name =
         
 -- This thing is probably not very fast.
 -- I think it should be possible to do some pre-computation.
+-- like a map from the name to the suffixes list
 
-possibleLongerOpe name = oneOf (nub starting)
+possibleLongerOpe name = choice (map string suffixes)
   where
-    starting = map (!! (length name)) possibles
-    possibles = filter (\x -> take (length name) x == name) longEnough
+    suffixes = map (drop (length name)) possibles
+    possibles = filter (name `isPrefixOf`) longEnough
     longEnough = filter (\x -> length name < length x) allOp
     
 ----------------------------------------------------------------
