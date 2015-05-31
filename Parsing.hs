@@ -49,7 +49,7 @@ TokenParser
   , identifier = m_identifier
   , reserved = m_reserved
   --, reservedOp = m_reservedOp
-  , integer = m_integer
+  , natural = m_natural
   , whiteSpace = m_whiteSpace
   , lexeme = m_lexeme
   } = makeTokenParser def
@@ -630,7 +630,7 @@ readValueIdent = do
   return $ BIdentifier x suffix
 
 readNumber = do
-  n <- m_integer -- TODO should read only natural and use prefix unary "-" ??
+  n <- m_natural
   return $ BNumber n
   
 readBoolConv = do
