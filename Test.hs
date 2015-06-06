@@ -58,17 +58,14 @@ main = do
   quickCheckWith testArgs testParsing
 
   quickCheckWith stdArgs{maxSuccess=1} $
-    show (runBParser "test" "MACHINE m PROPERTIES f ~ ~ = f END")
-    ==
-    show (runBParser "test" "MACHINE m INITIALISATION (f ~) ~ = f END")
-  quickCheckWith stdArgs{maxSuccess=1} $
-    show (runBParser "test" "MACHINE m PROPERTIES - - -2 = 2 END")
-    ==
-    show (runBParser "test" "MACHINE m INITIALISATION - (- ( -2)) = 2 END")
-  quickCheckWith stdArgs{maxSuccess=1} $
     show (runBParser "test" "MACHINE m VALUES x = 1~(22) END")
     ==
     show (runBParser "test" "MACHINE m VALUES x = (1~)(22) END")
+    
+  quickCheckWith stdArgs{maxSuccess=1} $
+    show (runBParser "test" "MACHINE m VALUES x = f(x)(y) END")
+    ==
+    show (runBParser "test" "MACHINE m VALUES x = (f(x))(y) END")
     
     
                
