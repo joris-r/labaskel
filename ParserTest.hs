@@ -1,4 +1,4 @@
---    Copyright 2014 Joris Rehm
+--    Copyright 2014, 2015 Joris Rehm
 -- 
 --    Licensed under the Apache License, Version 2.0 (the "License");
 --    you may not use this file except in compliance with the License.
@@ -49,10 +49,10 @@ instance Arbitrary BClause where
     , liftM BConcreteConstants (listOf1 arbitrary) -- TODO relax empty ?
     , liftM BAbstractConstants (listOf1 arbitrary) -- TODO relax empty ?
     , liftM BPromotes (listOf1 arbitrary) -- TODO relax empty ?
-    , liftM BInvariant arbitrary
-    , liftM BAssertions (listOf1 (arbitrary))
-    , liftM BProperties arbitrary
-    , liftM BValues (listOf1 (arbitrary))
+    , liftM BInvariant (sized sizedBPred)
+    , liftM BAssertions (listOf1 (sized sizedBPred))
+    , liftM BProperties (sized sizedBPred)
+    , liftM BValues (listOf1 (sized sizedBPred))
     , liftM BInitialisation arbitrary
     , liftM BRefines arbitrary
     , liftM BImports (listOf1 arbitrary)
@@ -90,16 +90,16 @@ instance Arbitrary BSubstitution where
 sizedBSub :: Int -> Gen BSubstitution
 sizedBSub 0 = oneof
   [ return BSubstitutionSkip
-  , liftM2 BSubstitutionSimple (listOf1 arbitrary) (listOf1 arbitrary)
-  , liftM2 BSubstitutionBecomeIn (listOf1 arbitrary) arbitrary
-  , liftM2 BSubstitutionSuchThat (listOf1 arbitrary) arbitrary
+  , liftM2 BSubstitutionSimple (listOf1 arbitrary) (listOf1 (sized sizedBExpr))
+  , liftM2 BSubstitutionBecomeIn (listOf1 arbitrary) (sized sizedBExpr)
+  , liftM2 BSubstitutionSuchThat (listOf1 arbitrary) (sized sizedBPred)
   ]
 sizedBSub n = frequency
   [ (2, liftM BSubstitutionBlock (sizedBSub $ n - 1))
   , (1, return BSubstitutionSkip)
-  , (1, liftM2 BSubstitutionSimple (listOf1 arbitrary) (listOf1 arbitrary))
-  , (2, liftM2 BSubstitutionPreCondition arbitrary (sizedBSub $ n - 1))
-  , (2, liftM2 BSubstitutionAssert arbitrary (sizedBSub $ n - 1))
+  , (1, liftM2 BSubstitutionSimple (listOf1 arbitrary) (listOf1 (sized sizedBExpr)))
+  , (2, liftM2 BSubstitutionPreCondition (sized sizedBPred) (sizedBSub $ n - 1))
+  , (2, liftM2 BSubstitutionAssert (sized sizedBPred) (sizedBSub $ n - 1))
   , (2, liftM BSubstitutionChoice (vectorOf 1 (sizedBSub $ n - 1)) )
   , (2, liftM BSubstitutionChoice (vectorOf 2 (sizedBSub $ n `div` 2)) )
   , (2, liftM BSubstitutionChoice (vectorOf 3 (sizedBSub $ n `div` 3)) )
@@ -109,19 +109,19 @@ sizedBSub n = frequency
   , (2, liftM4 BSubstitutionSpecVar
           arbitrary
           (listOf1 arbitrary)
-          arbitrary
+          (sized sizedBPred)
           (sizedBSub $ n - 1 ) )
-  , (1, liftM2 BSubstitutionBecomeIn (listOf1 arbitrary) arbitrary)
-  , (1, liftM2 BSubstitutionSuchThat (listOf1 arbitrary) arbitrary)
+  , (1, liftM2 BSubstitutionBecomeIn (listOf1 arbitrary) (sized sizedBExpr))
+  , (1, liftM2 BSubstitutionSuchThat (listOf1 arbitrary) (sized sizedBPred))
   , (2, liftM2 BSubstitutionVar (listOf1 arbitrary) (sizedBSub $ n - 1))
   , (2, substComp BOpSubParal)
   , (2, substComp BOpSubSeq)
-  , (2, liftM3 BSubstitutionOpeCall arbitrary arbitrary arbitrary)
+  , (2, liftM3 BSubstitutionOpeCall arbitrary arbitrary (listOf (sized sizedBExpr)))
   , (2, liftM4 BSubstitutionWhile
-          arbitrary
+          (sized sizedBPred)
           (sizedBSub $ n - 1)
-          arbitrary
-          arbitrary)
+          (sized sizedBPred)
+          (sized sizedBExpr))
   ] where
     {-
       Parallel substitution operator has left precedence in the grammar
@@ -158,12 +158,12 @@ sizedBSub n = frequency
     sizedBSubCond :: BOperatorCond -> Int -> Int -> Bool -> Gen BSubstitution
     sizedBSubCond op m n False =
       liftM3 BSubstitutionCond (return op)
-        (liftM2 zip (vectorOf n arbitrary) (vectorOf n
+        (liftM2 zip (vectorOf n (sized sizedBPred)) (vectorOf n
           (sizedBSub (m`div`n) ) ))
         (return Nothing)
     sizedBSubCond op m n True =
       liftM3 BSubstitutionCond (return op)
-        (liftM2 zip (vectorOf (n-1) arbitrary) (vectorOf (n-1)
+        (liftM2 zip (vectorOf (n-1) (sized sizedBPred)) (vectorOf (n-1)
           (sizedBSub (m`div`n) ) ))
         (liftM Just (sizedBSub (m`div`n)))
 
@@ -181,13 +181,13 @@ sizedBSub n = frequency
     sizedBSubCase m n False =
       liftM3 BSubstitutionCase
         (sizedBExpr (m`div`n) )
-        (liftM2 zip (vectorOf n arbitrary) (vectorOf n
+        (liftM2 zip (vectorOf n (sized sizedBExpr)) (vectorOf n
           (sizedBSub (m`div`n) ) ))
         (return Nothing)
     sizedBSubCase m n True =
       liftM3 BSubstitutionCase
         (sizedBExpr (m`div`n) )
-        (liftM2 zip (vectorOf (n-1) arbitrary) (vectorOf (n-1)
+        (liftM2 zip (vectorOf (n-1) (sized sizedBExpr)) (vectorOf (n-1)
           (sizedBSub (m`div`n) ) ))
         (liftM Just (sizedBSub (m`div`n)))
 
@@ -204,35 +204,42 @@ rotateLeftSubComp (BSubstitutionCompo op a b) =
 rotateLeftSubComp x = x
 
 
-instance Arbitrary BExpression where
-  arbitrary = sized sizedBExpr
+
+sizedBPred :: Int -> Gen BExpression
+sizedBPred 0 = oneof
+  [ liftM3 BComparisonPredicate
+           genOpeComparison
+           (sizedBExpr $ 0)
+           (sizedBExpr $ 0)
+  ]
+sizedBPred n = frequency
+  [ (1, liftM3 BComparisonPredicate
+               genOpeComparison
+               (sizedBExpr $ (n-1) `div` 2)
+               (sizedBExpr $ (n-1) `div` 2))
+  , (2, liftM BNegation (sizedBPred $ n-1))
+  , (2, liftM3 BBinaryPredicate
+               (elements [ BConjunction, BDisjunction, BImplication, BEquivalence ])
+               (sizedBPred $ (n-1) `div` 2)
+               (sizedBPred $ (n-1) `div` 2))
+  , (2, liftM3 BQuantifiedPredicate
+               arbitrary
+               (listOf1 arbitrary)
+               (sizedBPred $ n-1))
+  ]
+
+--instance Arbitrary BExpression where
+--  arbitrary = sized sizedBExpr
 
 sizedBExpr :: Int -> Gen BExpression
 sizedBExpr 0 = oneof
   [ liftM2 BIdentifier arbitrary arbitrary
   , liftM BNumber (elements [0,1,3,25,100])
-  , liftM3 BComparisonPredicate
-           arbitrary
-           (sizedBExpr $ 0)
-           (sizedBExpr $ 0)
   ]
 sizedBExpr n = frequency
-  [ (1, liftM3 BComparisonPredicate
-               arbitrary
-               (sizedBExpr $ (n-1) `div` 2)
-               (sizedBExpr $ (n-1) `div` 2))
-  , (2, liftM BNegation (sizedBExpr $ n-1))
-  , (2, liftM3 BBinaryPredicate
-               arbitrary
-               (sizedBExpr $ (n-1) `div` 2)
-               (sizedBExpr $ (n-1) `div` 2))
-  , (2, liftM3 BQuantifiedPredicate
-               arbitrary
-               (listOf1 arbitrary)
-               (sizedBExpr $ n-1))
-  , (1, liftM2 BIdentifier arbitrary arbitrary)
+  [ (1, liftM2 BIdentifier arbitrary arbitrary)
   , (1, liftM BNumber (elements [0,1,3,25,100]))
-  , (1, liftM BBoolConversion (sizedBExpr $ n-1))  -- looping back!
+  , (1, liftM BBoolConversion (sizedBPred $ n-1))  -- looping back!
   , (2, liftM2 BUnaryExpression arbitrary
                (sizedBExpr $ n-1))
   , (2, liftM3 BBinaryExpression arbitrary
@@ -242,11 +249,11 @@ sizedBExpr n = frequency
   , (1, liftM4 BQuantifiedExpression 
                arbitrary
                (listOf1 arbitrary)
-               (sizedBExpr $ n-1)  -- looping back!
+               (sizedBPred $ n-1)  -- looping back!
                (sizedBExpr $ n-1))
   , (1, liftM2 BSetComprehension
                (listOf1 arbitrary)
-               (sizedBExpr $ n-1))  -- looping back!
+               (sizedBPred $ n-1))  -- looping back!
   , (2, liftM BSetExtension (vectorOf 1 (sizedBExpr $ (n-1))))
   , (2, liftM BSetExtension (vectorOf 2 (sizedBExpr $ (n-1) `div` 2)))
   , (2, liftM BSetExtension (vectorOf 3 (sizedBExpr $ (n-1) `div` 3)))
@@ -272,34 +279,21 @@ instance Arbitrary BOperatorQuantPred where
     [ BUniversal
     , BExistential
     ]
-    
+
 instance Arbitrary BOperatorUnaExpr where
   arbitrary = elements
     [ BOpposite
     , BInverse
     ]
 
+genOpeComparison =
+    elements [ BEquality, BInequality, BMembership, BNonMembership, BInclusion,
+               BStrictInclusion, BNonInclusion, BNonStrictInclusion, BInequality,
+               BStrictInequality, BReverseInequality, BStrictReverseInequality ]
+    
 instance Arbitrary BOperatorBinExpr where
   arbitrary = elements
-    [ BConjunction
-    , BDisjunction
-    , BImplication
-    , BEquivalence
-    
-    , BEquality
-    , BInequality
-    , BMembership
-    , BNonMembership
-    , BInclusion
-    , BStrictInclusion
-    , BNonInclusion
-    , BNonStrictInclusion
-    , BInequality
-    , BStrictInequality
-    , BReverseInequality
-    , BStrictReverseInequality
-    
-    , BAddition
+    [ BAddition
     , BSubstration
     , BAsterisk
     , BDivision
