@@ -73,11 +73,9 @@ m_reservedOp name =
 -- I think it should be possible to do some pre-computation.
 -- like a map from the name to the suffixes list
 
-possibleLongerOpe name = choice (map string suffixes)
+possibleLongerOpe name = choice (map (try.string) suffixes)
   where
-    suffixes = map (drop (length name)) possibles
-    possibles = filter (name `isPrefixOf`) longEnough
-    longEnough = filter (\x -> length name < length x) allOp
+    suffixes = filter (""/=) $ map (drop (length name)) (filter (name `isPrefixOf`) allOp)
     
 ----------------------------------------------------------------
 
